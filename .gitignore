@@ -1,0 +1,8 @@
+bin
+node_modules
+dev.log
+dev-prev.log
+chat.db
+frontend.log
+.shoreman.pid
+.env
