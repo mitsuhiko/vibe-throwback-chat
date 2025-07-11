@@ -14,6 +14,7 @@ type Session struct {
 	Nickname      *string         `json:"nickname,omitempty"`
 	Conn          *websocket.Conn `json:"-"`
 	LastHeartbeat time.Time       `json:"last_heartbeat"`
+	Channels      map[int]bool    `json:"channels"` // channel IDs user is subscribed to
 	mu            sync.Mutex      `json:"-"`
 }
 
@@ -41,6 +42,7 @@ func (sm *SessionManager) AddSession(sessionID string, conn *websocket.Conn) *Se
 		ID:            sessionID,
 		Conn:          conn,
 		LastHeartbeat: time.Now(),
+		Channels:      make(map[int]bool),
 	}
 
 	sm.sessions[sessionID] = session
@@ -89,6 +91,21 @@ func (sm *SessionManager) GetSessions() map[string]*Session {
 		sessions[k] = v
 	}
 	return sessions
+}
+
+func (sm *SessionManager) BroadcastToChannel(channelID int, message interface{}) {
+	sm.mu.RLock()
+	defer sm.mu.RUnlock()
+
+	for _, session := range sm.sessions {
+		if session.IsInChannel(channelID) {
+			go func(s *Session) {
+				if err := s.SendMessage(message); err != nil {
+					log.Printf("Failed to send message to session %s: %v", s.ID, err)
+				}
+			}(session)
+		}
+	}
 }
 
 func (sm *SessionManager) heartbeatChecker() {
@@ -140,4 +157,33 @@ func (s *Session) SendMessage(message interface{}) error {
 	defer s.mu.Unlock()
 
 	return s.Conn.WriteJSON(message)
+}
+
+func (s *Session) JoinChannel(channelID int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.Channels[channelID] = true
+}
+
+func (s *Session) LeaveChannel(channelID int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.Channels, channelID)
+}
+
+func (s *Session) IsInChannel(channelID int) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.Channels[channelID]
+}
+
+func (s *Session) GetChannels() []int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	
+	channels := make([]int, 0, len(s.Channels))
+	for channelID := range s.Channels {
+		channels = append(channels, channelID)
+	}
+	return channels
 }

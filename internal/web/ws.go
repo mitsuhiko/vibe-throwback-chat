@@ -18,8 +18,8 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-// WebSocket message types
-type WSMessage struct {
+// WebSocket command message types
+type WSRequest struct {
 	Type  string `json:"type,omitempty"`
 	Cmd   string `json:"cmd,omitempty"`
 	ReqID string `json:"req_id,omitempty"`
@@ -43,8 +43,8 @@ func NewWSResponse(reqID string, okay bool, err string, data interface{}) WSResp
 	}
 }
 
-func ParseWSMessage(data []byte) (*WSMessage, error) {
-	var msg WSMessage
+func ParseWSMessage(data []byte) (*WSRequest, error) {
+	var msg WSRequest
 	err := json.Unmarshal(data, &msg)
 	return &msg, err
 }
@@ -139,6 +139,12 @@ func (h *WebSocketHandler) handleMessage(sess *chat.Session, data []byte) error 
 		return h.HandleLogout(sess, data)
 	case "heartbeat":
 		return h.HandleHeartbeat(sess, msg.ReqID)
+	case "join":
+		return h.HandleJoin(sess, data)
+	case "leave":
+		return h.HandleLeave(sess, data)
+	case "message":
+		return h.HandleMessage(sess, data)
 	default:
 		return sess.SendMessage(NewWSResponse(msg.ReqID, false, "Unknown command", nil))
 	}

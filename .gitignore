@@ -3,6 +3,8 @@ node_modules
 dev.log
 dev-prev.log
 chat.db
+chat.db-wal
+chat.db-shm
 frontend.log
 .shoreman.pid
 .env

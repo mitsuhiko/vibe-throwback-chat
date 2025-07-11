@@ -7,19 +7,18 @@ import (
 	"throwback-chat/internal/models"
 )
 
-type LoginRequest struct {
-	Cmd      string `json:"cmd"`
-	ReqID    string `json:"req_id"`
+type WSLoginRequest struct {
+	WSRequest
 	Nickname string `json:"nickname"`
 }
 
-type LoginResponse struct {
+type WSLoginResponse struct {
 	UserID   int    `json:"user_id"`
 	Nickname string `json:"nickname"`
 }
 
 func (h *WebSocketHandler) HandleLogin(sess *chat.Session, data []byte) error {
-	var req LoginRequest
+	var req WSLoginRequest
 	if err := DecodeWSData(sess, data, "", &req); err != nil {
 		return err // This will terminate the websocket connection
 	}
@@ -52,7 +51,7 @@ func (h *WebSocketHandler) HandleLogin(sess *chat.Session, data []byte) error {
 
 	log.Printf("User %s (ID: %d) logged in on session %s", user.Nickname, user.ID, sess.ID)
 
-	return sess.SendMessage(NewWSResponse(req.ReqID, true, "", LoginResponse{
+	return sess.SendMessage(NewWSResponse(req.ReqID, true, "", WSLoginResponse{
 		UserID:   user.ID,
 		Nickname: user.Nickname,
 	}))
