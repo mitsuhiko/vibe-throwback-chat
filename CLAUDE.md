@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - `make dev` - Start development environment (runs both backend and frontend with live reload)
 - `make install` - Install dependencies for both Go and Node.js
-- `make build` - Build the Go server binary
+- `make build` - Build the Go server binary to `bin/server`
 - `make format` - Format code using Go fmt and Prettier
 - `make check` - Run static analysis (`go vet`) and TypeScript type checking
 - `make tail-log` - View development logs (last 100 lines, ANSI stripped)
@@ -19,22 +19,28 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Backend (Go)
 - **Entry point**: `cmd/server/main.go` - Chi router with middleware
-- **Packages**: `internal/api/`, `internal/db/`, `internal/utils/` (to be implemented)
-- **Database**: SQLite with custom migration system in `internal/db/migrations/`
-- **Dependencies**: Chi router, godotenv for config, modernc.org/sqlite (planned)
+- **Packages**:
+  - `internal/chat/` - Chat management logic
+  - `internal/db/` - Database operations and migrations
+  - `internal/models/` - Data models (User, etc.)
+  - `internal/utils/` - Utility functions
+  - `internal/web/` - Web layer (HTTP handlers, WebSocket management)
+- **Database**: SQLite with migration system in `internal/db/migrations/`
+- **Dependencies**: Chi router, Gorilla WebSocket, godotenv, modernc.org/sqlite, jmoiron/sqlx
 
 ### Frontend (SolidJS)
 - **Location**: `web/` directory
 - **Tech**: SolidJS + TypeScript, Vite build, TailwindCSS v4
 - **Development**: Vite dev server proxies `/api` and `/ws` to Go backend
-- **Dependencies**: SolidJS, marked for markdown rendering
+- **Dependencies**: SolidJS, SolidJS Router, marked for markdown rendering, Prettier
 
 ### Database Schema
-- Core tables: `users` (nicknames, service flags)
-- `channels` (names, topics)
-- `messages` (markdown content, events)
-- `ops` (operator permissions)
-- `migrations` (schema versioning)
+Implemented in `internal/db/migrations/0001_initial.sql`:
+- `users` - User accounts (id, nickname, is_serv flag)
+- `channels` - Chat channels (id, name, topic)
+- `messages` - Chat messages (id, channel_id, user_id, sent_at, message, is_passive, event, nickname)
+- `ops` - Operator permissions (user_id, channel_id, granted_by, granted_at)
+- `migrations` - Migration tracking (id, filename, applied_at)
 
 ## Configuration
 
