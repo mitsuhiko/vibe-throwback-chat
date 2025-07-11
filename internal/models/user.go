@@ -8,9 +8,9 @@ import (
 )
 
 type User struct {
-	ID       int    `json:"id"`
-	Nickname string `json:"nickname"`
-	IsServ   bool   `json:"is_serv"`
+	ID       int    `json:"id" db:"id"`
+	Nickname string `json:"nickname" db:"nickname"`
+	IsServ   bool   `json:"is_serv" db:"is_serv"`
 }
 
 func CreateOrUpdateUser(database *db.DB, nickname string) (*User, error) {

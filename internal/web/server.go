@@ -9,14 +9,16 @@ import (
 )
 
 type Server struct {
-	db     *db.DB
-	dbPath string
+	db        *db.DB
+	dbPath    string
+	wsHandler *WebSocketHandler
 }
 
 func NewServer(database *db.DB, dbPath string) *Server {
 	return &Server{
-		db:     database,
-		dbPath: dbPath,
+		db:        database,
+		dbPath:    dbPath,
+		wsHandler: NewWebSocketHandler(database),
 	}
 }
 

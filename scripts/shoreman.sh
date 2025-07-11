@@ -127,7 +127,7 @@ main() {
   if [[ -f "$pidfile" ]]; then
     local existing_pid=$(cat "$pidfile")
     if kill -0 "$existing_pid" 2>/dev/null; then
-      echo "error: services are already running" >&2
+      echo "error: services are already running. that's good, we autoreload. no need to do anything" >&2
       exit 1
     fi
     # PID file exists but process is not running, remove stale PID file

@@ -82,8 +82,7 @@ func NewWebSocketHandler(database *db.DB) *WebSocketHandler {
 }
 
 func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
-	wsHandler := NewWebSocketHandler(s.db)
-	wsHandler.HandleConnection(w, r)
+	s.wsHandler.HandleConnection(w, r)
 }
 
 func (h *WebSocketHandler) HandleConnection(w http.ResponseWriter, r *http.Request) {
