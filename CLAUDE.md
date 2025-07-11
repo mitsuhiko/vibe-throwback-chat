@@ -20,7 +20,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Backend (Go)
 - **Entry point**: `cmd/server/main.go` - Chi router with middleware
 - **Packages**: `internal/api/`, `internal/db/`, `internal/utils/` (to be implemented)
-- **Database**: SQLite with custom migration system in `migrations/`
+- **Database**: SQLite with custom migration system in `internal/db/migrations/`
 - **Dependencies**: Chi router, godotenv for config, modernc.org/sqlite (planned)
 
 ### Frontend (SolidJS)

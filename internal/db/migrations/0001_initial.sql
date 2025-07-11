@@ -44,6 +44,3 @@ CREATE TABLE IF NOT EXISTS migrations (
 
 -- Create the default ChanServ user
 INSERT OR IGNORE INTO users (id, nickname, is_serv) VALUES (1, 'ChanServ', TRUE);
-
--- Insert this migration
-INSERT OR IGNORE INTO migrations (filename) VALUES ('0001_initial.sql');

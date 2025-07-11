@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
 	"github.com/joho/godotenv"
+	"throwback-chat/internal/db"
+	"throwback-chat/internal/web"
 )
 
 func main() {
@@ -32,28 +32,21 @@ func main() {
 		dbPath = "chat.db"
 	}
 
-	// Initialize router
-	r := chi.NewRouter()
+	// Initialize database
+	database, err := db.New(dbPath)
+	if err != nil {
+		log.Fatalf("Failed to initialize database: %v", err)
+	}
+	defer database.Close()
 
-	// Middleware
-	r.Use(middleware.Logger)
-	r.Use(middleware.Recoverer)
-	r.Use(middleware.RealIP)
-
-	// Routes
-	r.Get("/api/health", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status":"ok","db_path":"` + dbPath + `"}`))
-	})
-
-	// TODO: Add websocket endpoint
-	// TODO: Add other API endpoints
+	// Initialize web server
+	server := web.NewServer(database, dbPath)
+	router := server.SetupRouter()
 
 	log.Printf("Starting server on %s:%s", host, port)
 	log.Printf("Using database: %s", dbPath)
 
-	if err := http.ListenAndServe(host+":"+port, r); err != nil {
+	if err := http.ListenAndServe(host+":"+port, router); err != nil {
 		log.Fatal(err)
 	}
 }
