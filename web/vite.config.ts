@@ -3,10 +3,7 @@ import tailwindcss from "@tailwindcss/vite";
 import { consoleForwardPlugin } from "vite-console-forward-plugin";
 
 export default defineConfig({
-  plugins: [
-    tailwindcss(),
-    consoleForwardPlugin()
-  ],
+  plugins: [tailwindcss(), consoleForwardPlugin()],
   server: {
     proxy: {
       "/api": {

@@ -33,34 +33,34 @@ func (h *WebSocketHandler) HandleMessage(sess *chat.Session, data []byte) error 
 
 	// Check if user is logged in
 	if sess.UserID == nil {
-		return sess.SendMessage(NewWSResponse(req.ReqID, false, "Must be logged in to send messages", nil))
+		return sess.RespondError(req.ReqID, "Must be logged in to send messages")
 	}
 
 	// Check if message is not empty
 	if req.Message == "" {
-		return sess.SendMessage(NewWSResponse(req.ReqID, false, "Message cannot be empty", nil))
+		return sess.RespondError(req.ReqID, "Message cannot be empty")
 	}
 
 	// Check if channel exists
 	channel, err := models.GetChannelByID(h.db, req.ChannelID)
 	if err != nil {
 		log.Printf("Failed to get channel: %v", err)
-		return sess.SendMessage(NewWSResponse(req.ReqID, false, "Database error", nil))
+		return sess.RespondError(req.ReqID, "Database error")
 	}
 	if channel == nil {
-		return sess.SendMessage(NewWSResponse(req.ReqID, false, "Channel not found", nil))
+		return sess.RespondError(req.ReqID, "Channel not found")
 	}
 
 	// Check if user is in the channel
 	if !sess.IsInChannel(req.ChannelID) {
-		return sess.SendMessage(NewWSResponse(req.ReqID, false, "Not in channel", nil))
+		return sess.RespondError(req.ReqID, "Not in channel")
 	}
 
 	// Create message in database
 	dbMessage, err := models.CreateMessage(h.db, &req.ChannelID, *sess.UserID, req.Message, "message", *sess.Nickname, req.IsPassive)
 	if err != nil {
 		log.Printf("Failed to create message: %v", err)
-		return sess.SendMessage(NewWSResponse(req.ReqID, false, "Failed to send message", nil))
+		return sess.RespondError(req.ReqID, "Failed to send message")
 	}
 
 	// Broadcast message to all users in the channel
@@ -77,5 +77,5 @@ func (h *WebSocketHandler) HandleMessage(sess *chat.Session, data []byte) error 
 
 	log.Printf("Message sent by %s to channel %d: %s", *sess.Nickname, req.ChannelID, req.Message)
 
-	return sess.SendMessage(NewWSResponse(req.ReqID, true, "", nil))
+	return sess.RespondSuccess(req.ReqID, nil)
 }

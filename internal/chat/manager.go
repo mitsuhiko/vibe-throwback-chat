@@ -159,6 +159,28 @@ func (s *Session) SendMessage(message interface{}) error {
 	return s.Conn.WriteJSON(message)
 }
 
+// RespondError sends an error response for a WebSocket request
+func (s *Session) RespondError(reqID string, errorMsg string) error {
+	response := map[string]interface{}{
+		"type":   "response",
+		"req_id": reqID,
+		"okay":   false,
+		"error":  errorMsg,
+	}
+	return s.SendMessage(response)
+}
+
+// RespondSuccess sends a success response for a WebSocket request
+func (s *Session) RespondSuccess(reqID string, data interface{}) error {
+	response := map[string]interface{}{
+		"type":   "response",
+		"req_id": reqID,
+		"okay":   true,
+		"data":   data,
+	}
+	return s.SendMessage(response)
+}
+
 func (s *Session) JoinChannel(channelID int) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -180,7 +202,7 @@ func (s *Session) IsInChannel(channelID int) bool {
 func (s *Session) GetChannels() []int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	channels := make([]int, 0, len(s.Channels))
 	for channelID := range s.Channels {
 		channels = append(channels, channelID)

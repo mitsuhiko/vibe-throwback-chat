@@ -53,7 +53,7 @@ func ParseWSMessage(data []byte) (*WSRequest, error) {
 func DecodeWSData(sess *chat.Session, data []byte, reqID string, target interface{}) error {
 	if err := json.Unmarshal(data, target); err != nil {
 		// Send error response
-		sess.SendMessage(NewWSResponse(reqID, false, "Invalid request format", nil))
+		sess.RespondError(reqID, "Invalid request format")
 		// Close the connection by returning a special error
 		return &websocketTerminateError{message: "Invalid JSON in request"}
 	}
@@ -126,7 +126,7 @@ func (h *WebSocketHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 func (h *WebSocketHandler) handleMessage(sess *chat.Session, data []byte) error {
 	msg, err := ParseWSMessage(data)
 	if err != nil {
-		sess.SendMessage(NewWSResponse("", false, "Invalid JSON", nil))
+		sess.RespondError("", "Invalid JSON")
 		return &websocketTerminateError{message: "Invalid JSON in message"}
 	}
 
@@ -146,6 +146,6 @@ func (h *WebSocketHandler) handleMessage(sess *chat.Session, data []byte) error 
 	case "message":
 		return h.HandleMessage(sess, data)
 	default:
-		return sess.SendMessage(NewWSResponse(msg.ReqID, false, "Unknown command", nil))
+		return sess.RespondError(msg.ReqID, "Unknown command")
 	}
 }

@@ -1,8 +1,8 @@
 package models
 
 import (
-	"time"
 	"throwback-chat/internal/db"
+	"time"
 )
 
 type Message struct {
@@ -19,7 +19,7 @@ type Message struct {
 func CreateMessage(database *db.DB, channelID *int, userID int, message, event, nickname string, isPassive bool) (*Message, error) {
 	query := `INSERT INTO messages (channel_id, user_id, message, event, nickname, is_passive) 
 			  VALUES (?, ?, ?, ?, ?, ?)`
-	
+
 	result, err := database.WriteDB().Exec(query, channelID, userID, message, event, nickname, isPassive)
 	if err != nil {
 		return nil, err
@@ -49,7 +49,7 @@ func GetRecentMessages(database *db.DB, channelID int, limit int) ([]*Message, e
 			  WHERE channel_id = ? 
 			  ORDER BY sent_at DESC 
 			  LIMIT ?`
-	
+
 	err := database.ReadDBX().Select(&messages, query, channelID, limit)
 	return messages, err
 }

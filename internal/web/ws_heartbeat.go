@@ -9,7 +9,7 @@ type WSHeartbeatResponse struct {
 }
 
 func (h *WebSocketHandler) HandleHeartbeat(sess *chat.Session, reqID string) error {
-	return sess.SendMessage(NewWSResponse(reqID, true, "", WSHeartbeatResponse{
+	return sess.RespondSuccess(reqID, WSHeartbeatResponse{
 		Timestamp: sess.LastHeartbeat.Unix(),
-	}))
+	})
 }

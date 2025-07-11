@@ -27,7 +27,7 @@ func (h *WebSocketHandler) HandleLeave(sess *chat.Session, data []byte) error {
 
 	// Check if user is logged in
 	if sess.UserID == nil {
-		return sess.SendMessage(NewWSResponse(req.ReqID, false, "Must be logged in to leave channels", nil))
+		return sess.RespondError(req.ReqID, "Must be logged in to leave channels")
 	}
 
 	var channel *models.Channel
@@ -38,25 +38,25 @@ func (h *WebSocketHandler) HandleLeave(sess *chat.Session, data []byte) error {
 		channel, err = models.GetChannelByName(h.db, req.ChannelName)
 		if err != nil {
 			log.Printf("Failed to get channel by name: %v", err)
-			return sess.SendMessage(NewWSResponse(req.ReqID, false, "Database error", nil))
+			return sess.RespondError(req.ReqID, "Database error")
 		}
 	} else if req.ChannelID != 0 {
 		channel, err = models.GetChannelByID(h.db, req.ChannelID)
 		if err != nil {
 			log.Printf("Failed to get channel by ID: %v", err)
-			return sess.SendMessage(NewWSResponse(req.ReqID, false, "Database error", nil))
+			return sess.RespondError(req.ReqID, "Database error")
 		}
 	} else {
-		return sess.SendMessage(NewWSResponse(req.ReqID, false, "Channel name or ID required", nil))
+		return sess.RespondError(req.ReqID, "Channel name or ID required")
 	}
 
 	if channel == nil {
-		return sess.SendMessage(NewWSResponse(req.ReqID, false, "Channel not found", nil))
+		return sess.RespondError(req.ReqID, "Channel not found")
 	}
 
 	// Check if user is in the channel
 	if !sess.IsInChannel(channel.ID) {
-		return sess.SendMessage(NewWSResponse(req.ReqID, false, "Not in channel", nil))
+		return sess.RespondError(req.ReqID, "Not in channel")
 	}
 
 	// Remove user from channel subscription
@@ -87,8 +87,8 @@ func (h *WebSocketHandler) HandleLeave(sess *chat.Session, data []byte) error {
 
 	log.Printf("User %s left channel %s (ID: %d)", *sess.Nickname, channel.Name, channel.ID)
 
-	return sess.SendMessage(NewWSResponse(req.ReqID, true, "", WSLeaveResponse{
+	return sess.RespondSuccess(req.ReqID, WSLeaveResponse{
 		ChannelID:   channel.ID,
 		ChannelName: channel.Name,
-	}))
+	})
 }
