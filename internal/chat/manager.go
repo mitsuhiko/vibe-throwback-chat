@@ -137,6 +137,21 @@ func (sm *SessionManager) BroadcastToAll(message interface{}) {
 	}
 }
 
+// GetChannelUserCount returns the number of active sessions in a channel
+func (sm *SessionManager) GetChannelUserCount(channelID int) int {
+	sm.mu.RLock()
+	defer sm.mu.RUnlock()
+
+	count := 0
+	for _, session := range sm.sessions {
+		// Only count logged in users who are in the channel
+		if session.UserID != nil && session.IsInChannel(channelID) {
+			count++
+		}
+	}
+	return count
+}
+
 func (sm *SessionManager) heartbeatChecker() {
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()

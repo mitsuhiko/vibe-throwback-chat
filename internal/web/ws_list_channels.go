@@ -26,14 +26,29 @@ func (h *WebSocketHandler) HandleListChannels(sess *chat.Session, data []byte) e
 		return sess.RespondError(req.ReqID, "Must be logged in to list channels", nil)
 	}
 
-	// Get all channels with their user counts
-	channels, err := models.GetAllChannelsWithInfo(h.db)
+	// Get all channels from database
+	var dbChannels []models.Channel
+	err := h.db.ReadDBX().Select(&dbChannels, "SELECT id, name, topic FROM channels ORDER BY name")
 	if err != nil {
-		log.Printf("Failed to get channels with info: %v", err)
+		log.Printf("Failed to get channels: %v", err)
 		return sess.RespondError(req.ReqID, "Failed to retrieve channel list", nil)
 	}
 
-	log.Printf("User %s requested channel list, returning %d channels", *sess.Nickname, len(channels))
+	// Build channel info with session-based user counts
+	var channels []models.ChannelInfo
+	for _, channel := range dbChannels {
+		// Get current user count from session state (not database reconstruction)
+		userCount := h.sessions.GetChannelUserCount(channel.ID)
+
+		channels = append(channels, models.ChannelInfo{
+			ID:        channel.ID,
+			Name:      channel.Name,
+			Topic:     channel.Topic,
+			UserCount: userCount,
+		})
+	}
+
+	log.Printf("User %s requested channel list, returning %d channels with session-based user counts", *sess.Nickname, len(channels))
 
 	return sess.RespondSuccess(req.ReqID, WSListChannelsResponse{
 		Channels: channels,

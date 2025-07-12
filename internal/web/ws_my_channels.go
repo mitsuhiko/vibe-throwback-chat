@@ -26,14 +26,35 @@ func (h *WebSocketHandler) HandleMyChannels(sess *chat.Session, data []byte) err
 		return sess.RespondError(req.ReqID, "Must be logged in to list your channels", nil)
 	}
 
-	// Get channels the user is currently in
-	channels, err := models.GetUserChannels(h.db, *sess.UserID)
-	if err != nil {
-		log.Printf("Failed to get user channels for user %d: %v", *sess.UserID, err)
-		return sess.RespondError(req.ReqID, "Failed to retrieve your channel list", nil)
+	// Get channels from current session state (not database reconstruction)
+	channelIDs := sess.GetChannels()
+	var channels []models.ChannelInfo
+
+	for _, channelID := range channelIDs {
+		// Get channel metadata from database
+		channel, err := models.GetChannelByID(h.db, channelID)
+		if err != nil {
+			log.Printf("Failed to get channel %d metadata: %v", channelID, err)
+			continue // Skip this channel if we can't get its metadata
+		}
+		if channel == nil {
+			log.Printf("Channel %d not found in database", channelID)
+			continue // Skip this channel if it doesn't exist
+		}
+
+		// Get current user count from session state (not database reconstruction)
+		userCount := h.sessions.GetChannelUserCount(channelID)
+
+		// Build ChannelInfo
+		channels = append(channels, models.ChannelInfo{
+			ID:        channel.ID,
+			Name:      channel.Name,
+			Topic:     channel.Topic,
+			UserCount: userCount,
+		})
 	}
 
-	log.Printf("User %s requested their channel list, returning %d channels", *sess.Nickname, len(channels))
+	log.Printf("User %s requested their channel list, returning %d channels from session state", *sess.Nickname, len(channels))
 
 	return sess.RespondSuccess(req.ReqID, WSMyChannelsResponse{
 		Channels: channels,
