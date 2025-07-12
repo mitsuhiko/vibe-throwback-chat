@@ -28,12 +28,12 @@ func (h *WebSocketHandler) HandleAnnounce(sess *chat.Session, data []byte) error
 
 	// Check if user is logged in
 	if sess.UserID == nil {
-		return sess.RespondError(req.ReqID, "Must be logged in to make announcements")
+		return sess.RespondError(req.ReqID, "Must be logged in to make announcements", nil)
 	}
 
 	// Validate required fields
 	if req.Message == "" {
-		return sess.RespondError(req.ReqID, "Announcement message is required")
+		return sess.RespondError(req.ReqID, "Announcement message is required", nil)
 	}
 
 	// Check if this is a channel announcement or server announcement
@@ -41,28 +41,25 @@ func (h *WebSocketHandler) HandleAnnounce(sess *chat.Session, data []byte) error
 		// Channel announcement - check if user is operator
 		isOp, err := models.IsUserOp(h.db, *sess.UserID, *req.ChannelID)
 		if err != nil {
-			log.Printf("Failed to check operator status: %v", err)
-			return sess.RespondError(req.ReqID, "Database error")
+			return sess.RespondError(req.ReqID, "Database error", err)
 		}
 		if !isOp {
-			return sess.RespondError(req.ReqID, "You must be an operator to make channel announcements")
+			return sess.RespondError(req.ReqID, "You must be an operator to make channel announcements", nil)
 		}
 
 		// Verify the channel exists
 		channel, err := models.GetChannelByID(h.db, *req.ChannelID)
 		if err != nil {
-			log.Printf("Failed to get channel by ID: %v", err)
-			return sess.RespondError(req.ReqID, "Database error")
+			return sess.RespondError(req.ReqID, "Database error", err)
 		}
 		if channel == nil {
-			return sess.RespondError(req.ReqID, "Channel not found")
+			return sess.RespondError(req.ReqID, "Channel not found", nil)
 		}
 
 		// Create announcement event in database
 		_, err = models.CreateMessage(h.db, req.ChannelID, *sess.UserID, req.Message, "announcement", *sess.Nickname, false)
 		if err != nil {
-			log.Printf("Failed to create announcement message: %v", err)
-			return sess.RespondError(req.ReqID, "Failed to create announcement")
+			return sess.RespondError(req.ReqID, "Failed to create announcement", err)
 		}
 
 		// Broadcast announcement event to all users in the channel
@@ -90,19 +87,17 @@ func (h *WebSocketHandler) HandleAnnounce(sess *chat.Session, data []byte) error
 		user := &models.User{}
 		err := h.db.ReadDBX().Get(user, "SELECT id, nickname, is_serv FROM users WHERE id = ?", *sess.UserID)
 		if err != nil {
-			log.Printf("Failed to get user: %v", err)
-			return sess.RespondError(req.ReqID, "Database error")
+			return sess.RespondError(req.ReqID, "Database error", err)
 		}
 
 		if !user.IsServ {
-			return sess.RespondError(req.ReqID, "Only service users can make server-wide announcements")
+			return sess.RespondError(req.ReqID, "Only service users can make server-wide announcements", nil)
 		}
 
 		// Create server announcement event in database (no channel_id)
 		_, err = models.CreateMessage(h.db, nil, *sess.UserID, req.Message, "announcement", *sess.Nickname, false)
 		if err != nil {
-			log.Printf("Failed to create server announcement message: %v", err)
-			return sess.RespondError(req.ReqID, "Failed to create announcement")
+			return sess.RespondError(req.ReqID, "Failed to create announcement", err)
 		}
 
 		// Broadcast announcement event to all connected users

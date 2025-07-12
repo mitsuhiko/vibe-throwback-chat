@@ -25,7 +25,7 @@ func (h *WebSocketHandler) HandleLogout(sess *chat.Session, data []byte) error {
 	}
 
 	if sess.UserID == nil {
-		return sess.RespondError(req.ReqID, "Not logged in")
+		return sess.RespondError(req.ReqID, "Not logged in", nil)
 	}
 
 	nickname := ""

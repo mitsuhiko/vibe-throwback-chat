@@ -36,7 +36,7 @@ func (h *WebSocketHandler) HandleJoin(sess *chat.Session, data []byte) error {
 
 	// Check if user is logged in
 	if sess.UserID == nil {
-		return sess.RespondError(req.ReqID, "Must be logged in to join channels")
+		return sess.RespondError(req.ReqID, "Must be logged in to join channels", nil)
 	}
 
 	var channel *models.Channel
@@ -46,33 +46,30 @@ func (h *WebSocketHandler) HandleJoin(sess *chat.Session, data []byte) error {
 	if req.ChannelName != "" {
 		channel, err = models.GetChannelByName(h.db, req.ChannelName)
 		if err != nil {
-			log.Printf("Failed to get channel by name: %v", err)
-			return sess.RespondError(req.ReqID, "Database error")
+			return sess.RespondError(req.ReqID, "Database error", err)
 		}
 		if channel == nil {
 			// Create new channel
 			channel, err = models.CreateChannel(h.db, req.ChannelName)
 			if err != nil {
-				log.Printf("Failed to create channel: %v", err)
-				return sess.RespondError(req.ReqID, "Failed to create channel")
+				return sess.RespondError(req.ReqID, "Failed to create channel", err)
 			}
 		}
 	} else if req.ChannelID != 0 {
 		channel, err = models.GetChannelByID(h.db, req.ChannelID)
 		if err != nil {
-			log.Printf("Failed to get channel by ID: %v", err)
-			return sess.RespondError(req.ReqID, "Database error")
+			return sess.RespondError(req.ReqID, "Database error", err)
 		}
 		if channel == nil {
-			return sess.RespondError(req.ReqID, "Channel not found")
+			return sess.RespondError(req.ReqID, "Channel not found", nil)
 		}
 	} else {
-		return sess.RespondError(req.ReqID, "Channel name or ID required")
+		return sess.RespondError(req.ReqID, "Channel name or ID required", nil)
 	}
 
 	// Check if user is already in the channel
 	if sess.IsInChannel(channel.ID) {
-		return sess.RespondError(req.ReqID, "Already in channel")
+		return sess.RespondError(req.ReqID, "Already in channel", nil)
 	}
 
 	// Add user to channel subscription
@@ -81,18 +78,18 @@ func (h *WebSocketHandler) HandleJoin(sess *chat.Session, data []byte) error {
 	// Check if channel is empty and make user op if so
 	isEmpty, err := models.IsChannelEmpty(h.db, channel.ID)
 	if err != nil {
-		log.Printf("Failed to check if channel is empty: %v", err)
+		log.Printf("Failed to check if channel %d is empty: %v", channel.ID, err)
 	} else if isEmpty {
 		err = models.MakeUserOp(h.db, *sess.UserID, channel.ID, 1) // ChanServ grants op
 		if err != nil {
-			log.Printf("Failed to make user op: %v", err)
+			log.Printf("Failed to make user %d op in channel %d: %v", *sess.UserID, channel.ID, err)
 		}
 	}
 
 	// Create join event in database
 	_, err = models.CreateMessage(h.db, &channel.ID, *sess.UserID, "", "joined", *sess.Nickname, false)
 	if err != nil {
-		log.Printf("Failed to create join message: %v", err)
+		log.Printf("Failed to create join message for user %d in channel %d: %v", *sess.UserID, channel.ID, err)
 	}
 
 	// Broadcast join event to all users in the channel

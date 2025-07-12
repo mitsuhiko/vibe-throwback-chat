@@ -189,7 +189,13 @@ func (s *Session) SendMessage(message interface{}) error {
 }
 
 // RespondError sends an error response for a WebSocket request
-func (s *Session) RespondError(reqID string, errorMsg string) error {
+// If originalErr is provided, it will be logged with the error message
+func (s *Session) RespondError(reqID string, errorMsg string, originalErr error) error {
+	// Log the original error if provided
+	if originalErr != nil {
+		log.Printf("Session %s error (req_id: %s): %s - original error: %v", s.ID, reqID, errorMsg, originalErr)
+	}
+
 	response := map[string]interface{}{
 		"type":   "response",
 		"req_id": reqID,

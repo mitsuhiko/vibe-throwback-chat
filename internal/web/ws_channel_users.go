@@ -19,18 +19,27 @@ func (h *WebSocketHandler) HandleChannelUsers(sess *chat.Session, data []byte) e
 
 	// Ensure user is logged in
 	if sess.UserID == nil {
-		return sess.RespondError(req.ReqID, "Not logged in")
+		return sess.RespondError(req.ReqID, "Not logged in", nil)
+	}
+
+	// Verify channel exists
+	channel, err := models.GetChannelByID(h.db, req.ChannelID)
+	if err != nil {
+		return sess.RespondError(req.ReqID, "Database error", err)
+	}
+	if channel == nil {
+		return sess.RespondError(req.ReqID, "Channel not found", nil)
 	}
 
 	// Verify user is in the channel
 	if !sess.IsInChannel(req.ChannelID) {
-		return sess.RespondError(req.ReqID, "Not in channel")
+		return sess.RespondError(req.ReqID, "Not in channel", nil)
 	}
 
 	// Get channel users
 	users, err := models.GetChannelUsers(h.db, req.ChannelID)
 	if err != nil {
-		return sess.RespondError(req.ReqID, "Failed to get channel users")
+		return sess.RespondError(req.ReqID, "Failed to get channel users", err)
 	}
 
 	// Send response

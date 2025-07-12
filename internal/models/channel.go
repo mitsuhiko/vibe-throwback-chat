@@ -282,10 +282,10 @@ type ChannelInfo struct {
 
 // ChannelUser represents a user in a channel with their status
 type ChannelUser struct {
-	ID       int    `json:"id"`
-	Nickname string `json:"nickname"`
-	IsServ   bool   `json:"is_serv"`
-	IsOp     bool   `json:"is_op"`
+	ID       int    `json:"id" db:"id"`
+	Nickname string `json:"nickname" db:"nickname"`
+	IsServ   bool   `json:"is_serv" db:"is_serv"`
+	IsOp     bool   `json:"is_op" db:"is_op"`
 }
 
 // GetChannelUsers returns all users currently in a channel

@@ -23,14 +23,14 @@ func (h *WebSocketHandler) HandleListChannels(sess *chat.Session, data []byte) e
 
 	// Check if user is logged in
 	if sess.UserID == nil {
-		return sess.RespondError(req.ReqID, "Must be logged in to list channels")
+		return sess.RespondError(req.ReqID, "Must be logged in to list channels", nil)
 	}
 
 	// Get all channels with their user counts
 	channels, err := models.GetAllChannelsWithInfo(h.db)
 	if err != nil {
 		log.Printf("Failed to get channels with info: %v", err)
-		return sess.RespondError(req.ReqID, "Failed to retrieve channel list")
+		return sess.RespondError(req.ReqID, "Failed to retrieve channel list", nil)
 	}
 
 	log.Printf("User %s requested channel list, returning %d channels", *sess.Nickname, len(channels))

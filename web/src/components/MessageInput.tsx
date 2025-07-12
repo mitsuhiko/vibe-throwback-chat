@@ -69,7 +69,7 @@ export function MessageInput() {
           if (!userToKick) {
             throw new Error(`User "${username}" not found in this channel`);
           }
-          await chatAPI.kickUser(channelId, userToKick.id, reason || undefined);
+          await chatAPI.kickUser(channelId.toString(), userToKick.id.toString(), reason || undefined);
           showFeedback("success", `Kicked ${username}${reason ? ` (${reason})` : ""}`);
           break;
 

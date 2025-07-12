@@ -27,12 +27,12 @@ func (h *WebSocketHandler) HandleNick(sess *chat.Session, data []byte) error {
 
 	// Check if user is logged in
 	if sess.UserID == nil {
-		return sess.RespondError(req.ReqID, "Must be logged in to change nickname")
+		return sess.RespondError(req.ReqID, "Must be logged in to change nickname", nil)
 	}
 
 	// Validate new nickname
 	if req.NewNickname == "" {
-		return sess.RespondError(req.ReqID, "New nickname is required")
+		return sess.RespondError(req.ReqID, "New nickname is required", nil)
 	}
 
 	// Get current nickname
@@ -40,20 +40,19 @@ func (h *WebSocketHandler) HandleNick(sess *chat.Session, data []byte) error {
 
 	// Check if the new nickname is the same as current
 	if req.NewNickname == oldNickname {
-		return sess.RespondError(req.ReqID, "New nickname must be different from current nickname")
+		return sess.RespondError(req.ReqID, "New nickname must be different from current nickname", nil)
 	}
 
 	// Check if new nickname is already taken by another active session
 	for _, s := range h.sessions.GetSessions() {
 		if s.Nickname != nil && *s.Nickname == req.NewNickname && s.ID != sess.ID {
-			return sess.RespondError(req.ReqID, "Nickname already in use")
+			return sess.RespondError(req.ReqID, "Nickname already in use", nil)
 		}
 	}
 
 	// Update nickname in database
 	if err := models.UpdateUserNickname(h.db, *sess.UserID, req.NewNickname); err != nil {
-		log.Printf("Failed to update user nickname: %v", err)
-		return sess.RespondError(req.ReqID, "Database error")
+		return sess.RespondError(req.ReqID, "Database error", err)
 	}
 
 	// Update session nickname

@@ -1,2 +1,2 @@
 web: cd web && npm run dev
-api: go run ./cmd/server
+api: watchexec -r -w . --exts go,sql -- go run cmd/server/main.go

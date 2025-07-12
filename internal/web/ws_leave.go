@@ -28,7 +28,7 @@ func (h *WebSocketHandler) HandleLeave(sess *chat.Session, data []byte) error {
 
 	// Check if user is logged in
 	if sess.UserID == nil {
-		return sess.RespondError(req.ReqID, "Must be logged in to leave channels")
+		return sess.RespondError(req.ReqID, "Must be logged in to leave channels", nil)
 	}
 
 	var channel *models.Channel
@@ -38,26 +38,24 @@ func (h *WebSocketHandler) HandleLeave(sess *chat.Session, data []byte) error {
 	if req.ChannelName != "" {
 		channel, err = models.GetChannelByName(h.db, req.ChannelName)
 		if err != nil {
-			log.Printf("Failed to get channel by name: %v", err)
-			return sess.RespondError(req.ReqID, "Database error")
+			return sess.RespondError(req.ReqID, "Database error", err)
 		}
 	} else if req.ChannelID != 0 {
 		channel, err = models.GetChannelByID(h.db, req.ChannelID)
 		if err != nil {
-			log.Printf("Failed to get channel by ID: %v", err)
-			return sess.RespondError(req.ReqID, "Database error")
+			return sess.RespondError(req.ReqID, "Database error", err)
 		}
 	} else {
-		return sess.RespondError(req.ReqID, "Channel name or ID required")
+		return sess.RespondError(req.ReqID, "Channel name or ID required", nil)
 	}
 
 	if channel == nil {
-		return sess.RespondError(req.ReqID, "Channel not found")
+		return sess.RespondError(req.ReqID, "Channel not found", nil)
 	}
 
 	// Check if user is in the channel
 	if !sess.IsInChannel(channel.ID) {
-		return sess.RespondError(req.ReqID, "Not in channel")
+		return sess.RespondError(req.ReqID, "Not in channel", nil)
 	}
 
 	// Remove user from channel subscription

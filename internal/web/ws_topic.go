@@ -27,39 +27,36 @@ func (h *WebSocketHandler) HandleTopic(sess *chat.Session, data []byte) error {
 
 	// Check if user is logged in
 	if sess.UserID == nil {
-		return sess.RespondError(req.ReqID, "Must be logged in to change channel topic")
+		return sess.RespondError(req.ReqID, "Must be logged in to change channel topic", nil)
 	}
 
 	// Validate required fields
 	if req.ChannelID == 0 {
-		return sess.RespondError(req.ReqID, "Channel ID is required")
+		return sess.RespondError(req.ReqID, "Channel ID is required", nil)
 	}
 
 	// Check if the requesting user is an operator of the channel
 	isOp, err := models.IsUserOp(h.db, *sess.UserID, req.ChannelID)
 	if err != nil {
-		log.Printf("Failed to check operator status: %v", err)
-		return sess.RespondError(req.ReqID, "Database error")
+		return sess.RespondError(req.ReqID, "Database error", err)
 	}
 	if !isOp {
-		return sess.RespondError(req.ReqID, "You must be an operator to change the channel topic")
+		return sess.RespondError(req.ReqID, "You must be an operator to change the channel topic", nil)
 	}
 
 	// Verify the channel exists
 	channel, err := models.GetChannelByID(h.db, req.ChannelID)
 	if err != nil {
-		log.Printf("Failed to get channel by ID: %v", err)
-		return sess.RespondError(req.ReqID, "Database error")
+		return sess.RespondError(req.ReqID, "Database error", err)
 	}
 	if channel == nil {
-		return sess.RespondError(req.ReqID, "Channel not found")
+		return sess.RespondError(req.ReqID, "Channel not found", nil)
 	}
 
 	// Update the channel topic in the database
 	err = models.UpdateChannelTopic(h.db, req.ChannelID, req.Topic)
 	if err != nil {
-		log.Printf("Failed to update channel topic: %v", err)
-		return sess.RespondError(req.ReqID, "Failed to update topic")
+		return sess.RespondError(req.ReqID, "Failed to update topic", err)
 	}
 
 	// Create topic change event message

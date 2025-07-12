@@ -394,7 +394,7 @@ export const chatAPI = {
     } as ListChannelsRequest);
 
     if (response.okay) {
-      return response.channels || [];
+      return response.data?.channels || [];
     } else {
       throw new Error(response.error || "Failed to list channels");
     }
@@ -407,7 +407,7 @@ export const chatAPI = {
     } as MyChannelsRequest);
 
     if (response.okay) {
-      const channels = response.channels || [];
+      const channels = response.data?.channels || [];
       
       // Update store with channels
       channels.forEach((channel: Channel) => {
@@ -428,7 +428,7 @@ export const chatAPI = {
     } as ChannelUsersRequest);
 
     if (response.okay) {
-      return response.users || [];
+      return response.data?.users || [];
     } else {
       throw new Error(response.error || "Failed to get channel users");
     }
@@ -444,7 +444,7 @@ export const chatAPI = {
     } as HistoryRequest);
 
     if (response.okay) {
-      const messages = (response.messages || []).map((msg: any) => {
+      const messages = (response.data?.messages || []).map((msg: any) => {
         if (msg.type === "event") {
           return {
             id: `event_${Date.now()}_${Math.random()}`,

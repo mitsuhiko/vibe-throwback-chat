@@ -29,53 +29,50 @@ func (h *WebSocketHandler) HandleKick(sess *chat.Session, data []byte) error {
 
 	// Check if user is logged in
 	if sess.UserID == nil {
-		return sess.RespondError(req.ReqID, "Must be logged in to kick users")
+		return sess.RespondError(req.ReqID, "Must be logged in to kick users", nil)
 	}
 
 	// Validate required fields
 	if req.UserID == 0 {
-		return sess.RespondError(req.ReqID, "User ID is required")
+		return sess.RespondError(req.ReqID, "User ID is required", nil)
 	}
 	if req.ChannelID == 0 {
-		return sess.RespondError(req.ReqID, "Channel ID is required")
+		return sess.RespondError(req.ReqID, "Channel ID is required", nil)
 	}
 
 	// Check if the requesting user is an operator of the channel
 	isOp, err := models.IsUserOp(h.db, *sess.UserID, req.ChannelID)
 	if err != nil {
-		log.Printf("Failed to check operator status: %v", err)
-		return sess.RespondError(req.ReqID, "Database error")
+		return sess.RespondError(req.ReqID, "Database error", err)
 	}
 	if !isOp {
-		return sess.RespondError(req.ReqID, "You must be an operator to kick users")
+		return sess.RespondError(req.ReqID, "You must be an operator to kick users", nil)
 	}
 
 	// Verify the channel exists
 	channel, err := models.GetChannelByID(h.db, req.ChannelID)
 	if err != nil {
-		log.Printf("Failed to get channel by ID: %v", err)
-		return sess.RespondError(req.ReqID, "Database error")
+		return sess.RespondError(req.ReqID, "Database error", err)
 	}
 	if channel == nil {
-		return sess.RespondError(req.ReqID, "Channel not found")
+		return sess.RespondError(req.ReqID, "Channel not found", nil)
 	}
 
 	// Get the target user information
 	targetUser := &models.User{}
 	err = h.db.ReadDBX().Get(targetUser, "SELECT id, nickname, is_serv FROM users WHERE id = ?", req.UserID)
 	if err != nil {
-		log.Printf("Failed to get target user: %v", err)
-		return sess.RespondError(req.ReqID, "Target user not found")
+		return sess.RespondError(req.ReqID, "Target user not found", err)
 	}
 
 	// Prevent kicking ChanServ or other service users
 	if targetUser.IsServ {
-		return sess.RespondError(req.ReqID, "Cannot kick service users")
+		return sess.RespondError(req.ReqID, "Cannot kick service users", nil)
 	}
 
 	// Prevent self-kick (though this might be allowed in some IRC implementations)
 	if req.UserID == *sess.UserID {
-		return sess.RespondError(req.ReqID, "Cannot kick yourself")
+		return sess.RespondError(req.ReqID, "Cannot kick yourself", nil)
 	}
 
 	// Find all sessions for the target user
@@ -91,7 +88,7 @@ func (h *WebSocketHandler) HandleKick(sess *chat.Session, data []byte) error {
 	}
 
 	if !kicked {
-		return sess.RespondError(req.ReqID, "User is not in the channel")
+		return sess.RespondError(req.ReqID, "User is not in the channel", nil)
 	}
 
 	// Create kick event message

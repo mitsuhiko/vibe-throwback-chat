@@ -1,7 +1,6 @@
 package web
 
 import (
-	"log"
 	"time"
 
 	"throwback-chat/internal/chat"
@@ -29,22 +28,21 @@ func (h *WebSocketHandler) HandleHistory(sess *chat.Session, data []byte) error 
 
 	// Check if user is logged in
 	if sess.UserID == nil {
-		return sess.RespondError(req.ReqID, "Must be logged in to get message history")
+		return sess.RespondError(req.ReqID, "Must be logged in to get message history", nil)
 	}
 
 	// Check if user is in the channel
 	if !sess.IsInChannel(req.ChannelID) {
-		return sess.RespondError(req.ReqID, "You must be in the channel to view its history")
+		return sess.RespondError(req.ReqID, "You must be in the channel to view its history", nil)
 	}
 
 	// Validate channel exists
 	channel, err := models.GetChannelByID(h.db, req.ChannelID)
 	if err != nil {
-		log.Printf("Failed to get channel by ID: %v", err)
-		return sess.RespondError(req.ReqID, "Database error")
+		return sess.RespondError(req.ReqID, "Database error", err)
 	}
 	if channel == nil {
-		return sess.RespondError(req.ReqID, "Channel not found")
+		return sess.RespondError(req.ReqID, "Channel not found", nil)
 	}
 
 	// Set default limit if not provided
@@ -61,8 +59,7 @@ func (h *WebSocketHandler) HandleHistory(sess *chat.Session, data []byte) error 
 
 	messages, err := models.GetMessageHistory(h.db, req.ChannelID, historyOptions)
 	if err != nil {
-		log.Printf("Failed to fetch message history for channel %d: %v", req.ChannelID, err)
-		return sess.RespondError(req.ReqID, "Failed to retrieve message history")
+		return sess.RespondError(req.ReqID, "Failed to retrieve message history", err)
 	}
 
 	// Convert messages to WebSocket format

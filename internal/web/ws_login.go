@@ -24,26 +24,25 @@ func (h *WebSocketHandler) HandleLogin(sess *chat.Session, data []byte) error {
 	}
 
 	if req.Nickname == "" {
-		return sess.RespondError(req.ReqID, "Nickname is required")
+		return sess.RespondError(req.ReqID, "Nickname is required", nil)
 	}
 
 	// Check if user is already logged in
 	if sess.UserID != nil {
-		return sess.RespondError(req.ReqID, "Already logged in")
+		return sess.RespondError(req.ReqID, "Already logged in", nil)
 	}
 
 	// Check if nickname is already taken by another active session
 	for _, s := range h.sessions.GetSessions() {
 		if s.Nickname != nil && *s.Nickname == req.Nickname && s.ID != sess.ID {
-			return sess.RespondError(req.ReqID, "Nickname already in use")
+			return sess.RespondError(req.ReqID, "Nickname already in use", nil)
 		}
 	}
 
 	// Create or get user from database
 	user, err := models.CreateOrUpdateUser(h.db, req.Nickname)
 	if err != nil {
-		log.Printf("Failed to create/update user: %v", err)
-		return sess.RespondError(req.ReqID, "Database error")
+		return sess.RespondError(req.ReqID, "Database error", err)
 	}
 
 	// Set user in session
