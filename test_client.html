@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ThrowBackChat Test Client</title>
+    <style>
+        body { font-family: monospace; margin: 20px; background: #1a1a1a; color: #e0e0e0; }
+        .container { max-width: 1000px; }
+        .log { background: #2a2a2a; padding: 10px; height: 400px; overflow-y: scroll; border: 1px solid #555; margin: 10px 0; }
+        .chat-log { background: #2a2a2a; padding: 10px; height: 300px; overflow-y: scroll; border: 1px solid #555; margin: 10px 0; }
+        .controls { margin: 10px 0; }
+        .chat-controls { display: flex; gap: 10px; margin: 10px 0; }
+        input, button, select { padding: 5px; margin: 2px; background: #3a3a3a; color: #e0e0e0; border: 1px solid #555; }
+        button:hover { background: #4a4a4a; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 4px; }
+        .status.connected { background: #155724; color: #d4edda; }
+        .status.disconnected { background: #721c24; color: #f8d7da; }
+        .status.logged-in { background: #0c5460; color: #d1ecf1; }
+        .message { margin: 2px 0; }
+        .sent { color: #87ceeb; }
+        .received { color: #90ee90; }
+        .error { color: #ff6b6b; }
+        .event { color: #ffd700; font-style: italic; }
+        .chat-message { color: #e0e0e0; }
+        .chat-event { color: #ffd700; font-style: italic; }
+        .username { font-weight: bold; color: #87ceeb; }
+        .channel-list { background: #2a2a2a; padding: 10px; border: 1px solid #555; margin: 10px 0; }
+        .current-channel { font-weight: bold; color: #90ee90; }
+        h3 { color: #e0e0e0; margin: 10px 0 5px 0; }
+        #messageInput { flex: 1; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>ThrowBackChat Test Client</h1>
+        
+        <div id="status" class="status disconnected">Disconnected</div>
+        
+        <div class="controls">
+            <button onclick="connect()">Connect</button>
+            <button onclick="disconnect()">Disconnect</button>
+            <button onclick="sendHeartbeat()">Heartbeat</button>
+        </div>
+        
+        <div class="controls">
+            <input type="text" id="nickname" placeholder="Nickname" value="TestUser">
+            <button onclick="login()">Login</button>
+            <button onclick="logout()">Logout</button>
+            <input type="text" id="dyingMessage" placeholder="Dying message (optional)">
+        </div>
+
+        <h3>Channels</h3>
+        <div class="channel-list">
+            <div class="controls">
+                <input type="text" id="channelName" placeholder="Channel name" value="general">
+                <button onclick="joinChannel()">Join Channel</button>
+                <button onclick="leaveChannel()">Leave Current Channel</button>
+            </div>
+            <div id="channelInfo">
+                <div>Current channel: <span id="currentChannel" class="current-channel">None</span></div>
+                <div>Joined channels: <span id="joinedChannels">None</span></div>
+            </div>
+        </div>
+
+        <h3>Chat</h3>
+        <div class="chat-log" id="chatLog"></div>
+        
+        <div class="chat-controls">
+            <input type="text" id="messageInput" placeholder="Type a message..." onkeypress="handleMessageKeyPress(event)">
+            <button onclick="sendChatMessage()">Send</button>
+        </div>
+
+        <h3>Raw WebSocket Log</h3>
+        <div class="log" id="log"></div>
+        
+        <button onclick="clearLog()">Clear Raw Log</button>
+        <button onclick="clearChatLog()">Clear Chat</button>
+    </div>
+
+    <script>
+        let ws = null;
+        let reqId = 1;
+        let currentChannelId = null;
+        let joinedChannels = new Map(); // channelId -> channelName
+        let isLoggedIn = false;
+        
+        function log(message, type = '') {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logDiv.innerHTML += `<div class="message ${type}">[${timestamp}] ${message}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function chatLog(message, type = 'chat-message') {
+            const chatDiv = document.getElementById('chatLog');
+            const timestamp = new Date().toLocaleTimeString();
+            chatDiv.innerHTML += `<div class="message ${type}">[${timestamp}] ${message}</div>`;
+            chatDiv.scrollTop = chatDiv.scrollHeight;
+        }
+        
+        function updateStatus(connected, loggedIn = false) {
+            const statusDiv = document.getElementById('status');
+            if (loggedIn) {
+                statusDiv.textContent = 'Connected & Logged In';
+                statusDiv.className = 'status logged-in';
+            } else if (connected) {
+                statusDiv.textContent = 'Connected';
+                statusDiv.className = 'status connected';
+            } else {
+                statusDiv.textContent = 'Disconnected';
+                statusDiv.className = 'status disconnected';
+            }
+        }
+
+        function updateChannelInfo() {
+            const currentChannelSpan = document.getElementById('currentChannel');
+            const joinedChannelsSpan = document.getElementById('joinedChannels');
+            
+            if (currentChannelId && joinedChannels.has(currentChannelId)) {
+                currentChannelSpan.textContent = joinedChannels.get(currentChannelId);
+            } else {
+                currentChannelSpan.textContent = 'None';
+            }
+            
+            if (joinedChannels.size > 0) {
+                joinedChannelsSpan.textContent = Array.from(joinedChannels.values()).join(', ');
+            } else {
+                joinedChannelsSpan.textContent = 'None';
+            }
+        }
+        
+        function connect() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                log('Already connected', 'error');
+                return;
+            }
+            
+            ws = new WebSocket('ws://localhost:8080/ws');
+            
+            ws.onopen = function() {
+                log('WebSocket connected', 'received');
+                updateStatus(true, isLoggedIn);
+            };
+            
+            ws.onmessage = function(event) {
+                log('← ' + event.data, 'received');
+                handleIncomingMessage(event.data);
+            };
+            
+            ws.onclose = function() {
+                log('WebSocket disconnected', 'error');
+                updateStatus(false, false);
+                isLoggedIn = false;
+                currentChannelId = null;
+                joinedChannels.clear();
+                updateChannelInfo();
+            };
+            
+            ws.onerror = function(error) {
+                log('WebSocket error: ' + error, 'error');
+            };
+        }
+
+        function handleIncomingMessage(data) {
+            try {
+                const msg = JSON.parse(data);
+                
+                if (msg.type === 'response') {
+                    // Handle command responses
+                    if (msg.okay && msg.req_id && msg.req_id.startsWith('login_')) {
+                        isLoggedIn = true;
+                        updateStatus(true, true);
+                        chatLog('✓ Successfully logged in', 'chat-event');
+                    } else if (msg.okay && msg.req_id && msg.req_id.startsWith('join_')) {
+                        if (msg.data) {
+                            joinedChannels.set(msg.data.channel_id, msg.data.channel_name);
+                            currentChannelId = msg.data.channel_id;
+                            updateChannelInfo();
+                            chatLog(`✓ Joined channel #${msg.data.channel_name}`, 'chat-event');
+                        }
+                    } else if (msg.okay && msg.req_id && msg.req_id.startsWith('leave_')) {
+                        if (msg.data) {
+                            joinedChannels.delete(msg.data.channel_id);
+                            if (currentChannelId === msg.data.channel_id) {
+                                currentChannelId = null;
+                            }
+                            updateChannelInfo();
+                            chatLog(`✓ Left channel #${msg.data.channel_name}`, 'chat-event');
+                        }
+                    } else if (!msg.okay && msg.error) {
+                        chatLog(`✗ Error: ${msg.error}`, 'error');
+                    }
+                } else if (msg.type === 'message') {
+                    // Handle chat messages
+                    const channelName = joinedChannels.get(msg.channel_id) || `#${msg.channel_id}`;
+                    chatLog(`<span class="username">${msg.nickname}</span> [${channelName}]: ${msg.message}`, 'chat-message');
+                } else if (msg.type === 'event') {
+                    // Handle events (joins, leaves, etc.)
+                    const channelName = joinedChannels.get(msg.channel_id) || `#${msg.channel_id}`;
+                    chatLog(`* ${msg.nickname} ${msg.event} ${channelName}`, 'chat-event');
+                }
+            } catch (e) {
+                log('Failed to parse message: ' + e, 'error');
+            }
+        }
+        
+        function disconnect() {
+            if (ws) {
+                ws.close();
+                ws = null;
+                updateStatus(false);
+                isLoggedIn = false;
+                currentChannelId = null;
+                joinedChannels.clear();
+                updateChannelInfo();
+            }
+        }
+        
+        function sendMessage(message) {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                log('Not connected', 'error');
+                return;
+            }
+            
+            const messageStr = JSON.stringify(message);
+            ws.send(messageStr);
+            log('→ ' + messageStr, 'sent');
+        }
+        
+        function login() {
+            const nickname = document.getElementById('nickname').value;
+            if (!nickname) {
+                log('Please enter a nickname', 'error');
+                return;
+            }
+            
+            sendMessage({
+                cmd: 'login',
+                req_id: 'login_' + reqId++,
+                nickname: nickname
+            });
+        }
+        
+        function logout() {
+            const dyingMessage = document.getElementById('dyingMessage').value;
+            const message = {
+                cmd: 'logout',
+                req_id: 'logout_' + reqId++
+            };
+            
+            if (dyingMessage) {
+                message.dying_message = dyingMessage;
+            }
+            
+            sendMessage(message);
+            isLoggedIn = false;
+            currentChannelId = null;
+            joinedChannels.clear();
+            updateChannelInfo();
+            updateStatus(true, false);
+        }
+
+        function joinChannel() {
+            const channelName = document.getElementById('channelName').value.trim();
+            if (!channelName) {
+                chatLog('Please enter a channel name', 'error');
+                return;
+            }
+            
+            if (!isLoggedIn) {
+                chatLog('Must be logged in to join channels', 'error');
+                return;
+            }
+            
+            // Remove # prefix if present
+            const cleanChannelName = channelName.startsWith('#') ? channelName.slice(1) : channelName;
+            
+            sendMessage({
+                cmd: 'join',
+                req_id: 'join_' + reqId++,
+                channel_name: cleanChannelName
+            });
+        }
+
+        function leaveChannel() {
+            if (!currentChannelId) {
+                chatLog('Not in any channel', 'error');
+                return;
+            }
+            
+            sendMessage({
+                cmd: 'leave',
+                req_id: 'leave_' + reqId++,
+                channel_id: currentChannelId
+            });
+        }
+
+        function sendChatMessage() {
+            const messageInput = document.getElementById('messageInput');
+            const message = messageInput.value.trim();
+            
+            if (!message) {
+                return;
+            }
+            
+            if (!isLoggedIn) {
+                chatLog('Must be logged in to send messages', 'error');
+                return;
+            }
+            
+            if (!currentChannelId) {
+                chatLog('Must join a channel first', 'error');
+                return;
+            }
+            
+            sendMessage({
+                cmd: 'message',
+                req_id: 'message_' + reqId++,
+                channel_id: currentChannelId,
+                message: message,
+                is_passive: false
+            });
+            
+            messageInput.value = '';
+        }
+
+        function handleMessageKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendChatMessage();
+            }
+        }
+        
+        function sendHeartbeat() {
+            sendMessage({
+                cmd: 'heartbeat',
+                req_id: 'heartbeat_' + reqId++
+            });
+        }
+        
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+
+        function clearChatLog() {
+            document.getElementById('chatLog').innerHTML = '';
+        }
+        
+        // Auto-connect on page load
+        window.onload = function() {
+            log('Test client loaded. Click Connect to start.');
+            updateChannelInfo();
+        };
+    </script>
+</body>
+</html>
