@@ -93,7 +93,7 @@ func GetMessageHistory(database *db.DB, channelID int, options MessageHistoryOpt
 		args = append(args, *options.After, options.Limit)
 	} else {
 		// Get most recent messages (default behavior)
-		query = baseQuery + ` ORDER BY sent_at DESC LIMIT ?`
+		query = baseQuery + ` ORDER BY id DESC LIMIT ?`
 		args = append(args, options.Limit)
 	}
 
