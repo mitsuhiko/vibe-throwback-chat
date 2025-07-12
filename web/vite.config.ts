@@ -1,10 +1,10 @@
 import { defineConfig } from "vite";
 import solidPlugin from "vite-plugin-solid";
 import tailwindcss from "@tailwindcss/vite";
-// import { consoleForwardPlugin } from "vite-console-forward-plugin";
+import { consoleForwardPlugin } from "vite-console-forward-plugin";
 
 export default defineConfig({
-  plugins: [solidPlugin(), tailwindcss()], // consoleForwardPlugin() - commented out for Vite 6 compatibility
+  plugins: [solidPlugin(), tailwindcss(), consoleForwardPlugin()],
   server: {
     proxy: {
       "/api": {

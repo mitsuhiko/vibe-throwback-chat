@@ -15,11 +15,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `make check` - Run static analysis (`go vet`) and TypeScript type checking
 - `make tail-log` - View development logs (last 100 lines, ANSI stripped)
 
+## Debugging and Development
+
 **Important:**
 
-- never start the server in any other way than with `make dev`.
-- the server and the client are logging into dev.log which you can look at with `make tail`
-- if you are unsure, check the log
+- NEVER start the server in any other way than with `make dev`, NEVER kill or stop it.
+- the server and the client are logging into dev.log which you can look at with `make tail-log`
+- If you are told about a bug, always consult the log first (`make tail-log`)
 
 ## Architecture
 
