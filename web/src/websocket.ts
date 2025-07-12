@@ -1,4 +1,4 @@
-import { createSignal, createEffect } from "solid-js";
+import { createSignal, createEffect, createRoot } from "solid-js";
 import type {
   WebSocketRequest,
   WebSocketMessage,
@@ -23,9 +23,15 @@ export class WebSocketClient {
   private sessionId: string | null = null;
   private readonly SESSION_STORAGE_KEY = "tbchat_session_id";
 
-  // Signals for reactive state
-  private connectionStateSignal = createSignal<ConnectionState>("disconnected");
-  private lastErrorSignal = createSignal<string | null>(null);
+  // Signals for reactive state - will be initialized in createRoot
+  private connectionStateSignal!: [
+    () => ConnectionState,
+    (value: ConnectionState) => void,
+  ];
+  private lastErrorSignal!: [
+    () => string | null,
+    (value: string | null) => void,
+  ];
 
   // Event handlers
   public onMessage: (message: WebSocketMessage) => void = () => {};
@@ -35,9 +41,15 @@ export class WebSocketClient {
     this.url = url;
     this.loadStoredSessionId();
 
-    // React to connection state changes
-    createEffect(() => {
-      this.onConnectionChange(this.connectionStateSignal[0]());
+    // Initialize signals and react to connection state changes - wrapped in createRoot to prevent disposal warnings
+    createRoot(() => {
+      this.connectionStateSignal =
+        createSignal<ConnectionState>("disconnected");
+      this.lastErrorSignal = createSignal<string | null>(null);
+
+      createEffect(() => {
+        this.onConnectionChange(this.connectionStateSignal[0]());
+      });
     });
   }
 
@@ -301,8 +313,12 @@ export class WebSocketClient {
   }
 }
 
-// Create and export a singleton instance
-export const wsClient = new WebSocketClient();
+// Create and export a singleton instance - wrapped in createRoot to prevent disposal warnings
+let wsClient: WebSocketClient;
+createRoot(() => {
+  wsClient = new WebSocketClient();
+});
+export { wsClient };
 
 // Cleanup on page unload
 if (typeof window !== "undefined") {

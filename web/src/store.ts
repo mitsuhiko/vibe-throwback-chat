@@ -1,5 +1,5 @@
 import { createStore } from "solid-js/store";
-import { createSignal, createEffect } from "solid-js";
+import { createSignal, createEffect, createRoot } from "solid-js";
 import { wsClient } from "./websocket";
 import type {
   User,
@@ -23,16 +23,23 @@ import type {
   ChannelUsersRequest,
 } from "./types";
 
-// Create the main app store
-const [appState, setAppState] = createStore<AppState>({
-  connectionState: "disconnected",
-  currentUser: null,
-  currentChannel: null,
-  channels: {},
-  availableChannels: {},
-  messages: {},
-  channelUsers: {},
-  ops: {},
+// Create the main app store - wrapped in createRoot to prevent disposal warnings
+let appState: AppState;
+let setAppState: import("solid-js/store").SetStoreFunction<AppState>;
+
+createRoot(() => {
+  const result = createStore<AppState>({
+    connectionState: "disconnected",
+    currentUser: null,
+    currentChannel: null,
+    channels: {},
+    availableChannels: {},
+    messages: {},
+    channelUsers: {},
+    ops: {},
+  });
+  appState = result[0];
+  setAppState = result[1];
 });
 
 // Temporary notification system for errors
@@ -44,9 +51,15 @@ export interface TempNotification {
   timestamp: number;
 }
 
-const [tempNotifications, setTempNotifications] = createStore<
-  TempNotification[]
->([]);
+// Temp notifications store - wrapped in createRoot to prevent disposal warnings
+let tempNotifications: TempNotification[];
+let setTempNotifications: import("solid-js/store").SetStoreFunction<TempNotification[]>;
+
+createRoot(() => {
+  const result = createStore<TempNotification[]>([]);
+  tempNotifications = result[0];
+  setTempNotifications = result[1];
+});
 
 let notificationTimeouts = new Map<string, number>();
 
@@ -87,23 +100,43 @@ export const removeTempNotification = (id: string) => {
 
 export const getTempNotifications = () => tempNotifications;
 
-// Create reactive signals for commonly accessed state
-const [connectionState, setConnectionState] =
-  createSignal<ConnectionState>("disconnected");
-const [currentUser, setCurrentUser] = createSignal<User | null>(null);
-const [currentChannel, setCurrentChannel] = createSignal<string | null>(null);
+// Create reactive signals for commonly accessed state - wrapped in createRoot to prevent disposal warnings
+let connectionState: () => ConnectionState;
+let setConnectionState: (value: ConnectionState) => void;
+let currentUser: () => User | null;
+let setCurrentUser: (
+  value: User | null | ((prev: User | null) => User | null),
+) => void;
+let currentChannel: () => string | null;
+let setCurrentChannel: (value: string | null) => void;
 
-// Sync signals with store
-createEffect(() => {
-  setAppState("connectionState", connectionState());
+createRoot(() => {
+  const connectionStateResult = createSignal<ConnectionState>("disconnected");
+  connectionState = connectionStateResult[0];
+  setConnectionState = connectionStateResult[1];
+
+  const currentUserResult = createSignal<User | null>(null);
+  currentUser = currentUserResult[0];
+  setCurrentUser = currentUserResult[1];
+
+  const currentChannelResult = createSignal<string | null>(null);
+  currentChannel = currentChannelResult[0];
+  setCurrentChannel = currentChannelResult[1];
 });
 
-createEffect(() => {
-  setAppState("currentUser", currentUser());
-});
+// Sync signals with store - wrapped in createRoot to prevent disposal warnings
+createRoot(() => {
+  createEffect(() => {
+    setAppState("connectionState", connectionState());
+  });
 
-createEffect(() => {
-  setAppState("currentChannel", currentChannel());
+  createEffect(() => {
+    setAppState("currentUser", currentUser());
+  });
+
+  createEffect(() => {
+    setAppState("currentChannel", currentChannel());
+  });
 });
 
 // WebSocket message handler
