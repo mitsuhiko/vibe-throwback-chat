@@ -29,12 +29,13 @@ type WSRequest struct {
 
 // WSEvent represents a WebSocket event message
 type WSEvent struct {
-	Type      string `json:"type"`
-	ChannelID int    `json:"channel_id"`
-	Event     string `json:"event"`
-	UserID    int    `json:"user_id"`
-	Nickname  string `json:"nickname"`
-	SentAt    string `json:"sent_at"`
+	Type      string  `json:"type"`
+	ChannelID int     `json:"channel_id"`
+	Event     string  `json:"event"`
+	UserID    int     `json:"user_id"`
+	Nickname  string  `json:"nickname"`
+	SentAt    string  `json:"sent_at"`
+	Topic     *string `json:"topic,omitempty"`
 }
 
 // SessionInfoResponse represents the response data for session_info command
@@ -61,7 +62,6 @@ type ChannelUsersResponse struct {
 type QuitResponse struct {
 	Message string `json:"message"`
 }
-
 
 func ParseWSMessage(data []byte) (*WSRequest, error) {
 	var msg WSRequest

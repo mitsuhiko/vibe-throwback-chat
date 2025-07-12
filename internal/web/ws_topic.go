@@ -79,6 +79,7 @@ func (h *WebSocketHandler) HandleTopic(sess *chat.Session, data []byte) error {
 		UserID:    *sess.UserID,
 		Nickname:  *sess.Nickname,
 		SentAt:    time.Now().Format(time.RFC3339),
+		Topic:     &req.Topic,
 	}
 	h.sessions.BroadcastToChannel(req.ChannelID, topicEvent)
 
