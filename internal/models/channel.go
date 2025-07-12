@@ -117,24 +117,54 @@ func CreateChannel(database *db.DB, name string) (*Channel, error) {
 }
 
 func IsChannelEmpty(database *db.DB, channelID int) (bool, error) {
-	var count int
-	err := database.ReadDBX().Get(&count, "SELECT COUNT(*) FROM messages WHERE channel_id = ? AND event IN ('joined', 'left')", channelID)
+	// Check if there are any users currently in the channel
+	userCount, err := GetChannelUserCount(database, channelID)
 	if err != nil {
 		return false, err
 	}
 
-	// Get the latest join/leave events to determine if channel is empty
-	var joined, left int
-	database.ReadDBX().Get(&joined, "SELECT COUNT(*) FROM messages WHERE channel_id = ? AND event = 'joined'", channelID)
-	database.ReadDBX().Get(&left, "SELECT COUNT(*) FROM messages WHERE channel_id = ? AND event = 'left'", channelID)
+	if userCount > 0 {
+		return false, nil
+	}
 
-	return joined <= left, nil
+	// If no users, check if there are any active operators
+	// (operators who are still in the channel)
+	var activeOpCount int
+	query := `
+		SELECT COUNT(DISTINCT ops.user_id)
+		FROM ops
+		JOIN users u ON ops.user_id = u.id
+		LEFT JOIN (
+			SELECT user_id, channel_id,
+				   SUM(CASE WHEN event = 'joined' THEN 1 ELSE -1 END) as balance
+			FROM messages
+			WHERE channel_id = ? AND event IN ('joined', 'left')
+			GROUP BY user_id, channel_id
+		) user_status ON ops.user_id = user_status.user_id AND ops.channel_id = user_status.channel_id
+		WHERE ops.channel_id = ? 
+		AND COALESCE(user_status.balance, 0) > 0
+	`
+
+	err = database.ReadDBX().Get(&activeOpCount, query, channelID, channelID)
+	if err != nil {
+		return false, err
+	}
+
+	return activeOpCount == 0, nil
 }
 
 func MakeUserOp(database *db.DB, userID, channelID, grantedByUserID int) error {
 	_, err := database.WriteDB().Exec(
 		"INSERT OR REPLACE INTO ops (user_id, channel_id, granted_by_user_id) VALUES (?, ?, ?)",
 		userID, channelID, grantedByUserID,
+	)
+	return err
+}
+
+func RemoveUserOp(database *db.DB, userID, channelID int) error {
+	_, err := database.WriteDB().Exec(
+		"DELETE FROM ops WHERE user_id = ? AND channel_id = ?",
+		userID, channelID,
 	)
 	return err
 }

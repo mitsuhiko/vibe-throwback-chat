@@ -84,6 +84,12 @@ func (h *WebSocketHandler) HandleLeave(sess *chat.Session, data []byte) error {
 	}
 	h.sessions.BroadcastToChannel(channel.ID, leaveEvent)
 
+	// Remove operator status if user was an op
+	err = models.RemoveUserOp(h.db, *sess.UserID, channel.ID)
+	if err != nil {
+		log.Printf("Failed to remove op status for user %d in channel %d: %v", *sess.UserID, channel.ID, err)
+	}
+
 	// Attempt to clean up the channel if it's now empty
 	if err := models.DeleteEmptyChannel(h.db, channel.ID); err != nil {
 		log.Printf("Failed to cleanup empty channel %d: %v", channel.ID, err)

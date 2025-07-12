@@ -249,6 +249,12 @@ func (h *WebSocketHandler) handleUnexpectedDisconnect(sessionID string) {
 			continue
 		}
 
+		// Remove operator status if user was an op
+		err = models.RemoveUserOp(h.db, userID, channelID)
+		if err != nil {
+			log.Printf("Failed to remove op status for user %d in channel %d: %v", userID, channelID, err)
+		}
+
 		// Broadcast leave event to other users in the channel
 		leaveEvent := WSEvent{
 			Type:      "event",
@@ -326,6 +332,12 @@ func (h *WebSocketHandler) handleExpiredSession(sessionID string) {
 		if err != nil {
 			log.Printf("Failed to create leave message for channel %d: %v", channelID, err)
 			continue
+		}
+
+		// Remove operator status if user was an op
+		err = models.RemoveUserOp(h.db, userID, channelID)
+		if err != nil {
+			log.Printf("Failed to remove op status for user %d in channel %d: %v", userID, channelID, err)
 		}
 
 		// Broadcast leave event to other users in the channel
