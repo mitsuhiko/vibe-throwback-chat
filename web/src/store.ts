@@ -178,8 +178,14 @@ wsClient.onMessage = handleWebSocketMessage;
 wsClient.onConnectionChange = (state: ConnectionState) => {
   setConnectionState(state);
 
-  // Clear state on disconnect
+  // Clear state on disconnect only if not attempting reconnection
   if (state === "disconnected" || state === "error") {
+    // Don't clear user state if we're just reconnecting
+    if (state === "error") {
+      // Keep session data for reconnection
+      return;
+    }
+
     setCurrentUser(null);
     setCurrentChannel(null);
     setAppState({
@@ -193,7 +199,144 @@ wsClient.onConnectionChange = (state: ConnectionState) => {
       ops: {},
     });
   }
+
+  // Attempt session restoration on successful connection
+  if (state === "connected") {
+    attemptSessionRestoration();
+  }
 };
+
+// Attempt to restore session after connection
+async function attemptSessionRestoration() {
+  const sessionId = wsClient.getSessionId();
+  if (!sessionId) {
+    console.log("No session ID to restore");
+    return;
+  }
+
+  try {
+    console.log("Attempting to restore session:", sessionId);
+    // Try to get session info from server
+    const response = await wsClient.send<any>({
+      cmd: "session_info",
+      req_id: "",
+    });
+
+    if (response.okay && response.data) {
+      // Restore user state
+      if (response.data.user_id && response.data.nickname) {
+        console.log(
+          "Session restored successfully for user:",
+          response.data.nickname,
+        );
+        setCurrentUser({
+          id: response.data.user_id,
+          nickname: response.data.nickname,
+          is_serv: false,
+        });
+
+        // Restore channels and load their full state
+        if (response.data.channels && response.data.channels.length > 0) {
+          const restoredChannels = response.data.channels;
+
+          // First, add channels to state
+          restoredChannels.forEach((channel: any) => {
+            setAppState("channels", channel.id.toString(), {
+              id: channel.id.toString(),
+              name: channel.name,
+              topic: channel.topic || "",
+            });
+          });
+
+          // Load full state for each channel (users and messages)
+          for (const channel of restoredChannels) {
+            try {
+              // Load channel users and message history in parallel
+              const [usersResponse, historyResponse] = await Promise.all([
+                wsClient.send<any>({
+                  cmd: "channel_users",
+                  channel_id: channel.id,
+                  req_id: "",
+                }),
+                wsClient.send<any>({
+                  cmd: "get_history",
+                  channel_id: channel.id,
+                  limit: 50,
+                  req_id: "",
+                }),
+              ]);
+
+              // Set channel users
+              if (usersResponse.okay) {
+                setAppState(
+                  "channelUsers",
+                  channel.id.toString(),
+                  usersResponse.data.users || [],
+                );
+              }
+
+              // Set channel messages
+              if (historyResponse.okay) {
+                const messages = (historyResponse.data.messages || []).map(
+                  (msg: any) => {
+                    if (msg.type === "event") {
+                      return {
+                        id: `event_${Date.now()}_${Math.random()}`,
+                        channel_id: channel.id.toString(),
+                        user_id: msg.user_id || "system",
+                        nickname: msg.nickname || "System",
+                        message: formatEventMessage(msg),
+                        is_passive: true,
+                        event: msg.event,
+                        sent_at: msg.sent_at,
+                      };
+                    } else {
+                      return {
+                        id: `msg_${Date.now()}_${Math.random()}`,
+                        channel_id: channel.id.toString(),
+                        user_id: msg.user_id,
+                        nickname: msg.nickname,
+                        message: msg.message,
+                        is_passive: msg.is_passive,
+                        event: "message",
+                        sent_at: msg.sent_at,
+                      };
+                    }
+                  },
+                );
+                setAppState("messages", channel.id.toString(), messages);
+              }
+            } catch (error) {
+              console.error(
+                `Failed to load state for channel ${channel.name}:`,
+                error,
+              );
+            }
+          }
+
+          // Set the first channel as current channel if none is set
+          if (!currentChannel() && restoredChannels.length > 0) {
+            setCurrentChannel(restoredChannels[0].id.toString());
+            console.log("Set current channel to:", restoredChannels[0].name);
+          }
+        }
+      } else {
+        console.log("Session exists but user not logged in");
+        wsClient.clearSession();
+      }
+    } else {
+      console.log(
+        "Session restoration failed:",
+        response.error || "Unknown error",
+      );
+      wsClient.clearSession();
+    }
+  } catch (error) {
+    console.log("Session restoration failed:", error);
+    // Clear stored session if restoration fails
+    wsClient.clearSession();
+  }
+}
 
 // Helper function to refresh channel users
 async function refreshChannelUsers(channelId: string) {
@@ -220,6 +363,11 @@ export const chatAPI = {
         nickname: response.data.nickname || nickname,
         is_serv: false,
       });
+
+      // Store session ID after successful login
+      if (response.data.session_id) {
+        wsClient.setSessionId(response.data.session_id);
+      }
 
       // Automatically fetch user's channels after login
       try {
@@ -250,6 +398,21 @@ export const chatAPI = {
     });
 
     wsClient.disconnect();
+  },
+
+  async quit(dyingMessage?: string): Promise<void> {
+    try {
+      await wsClient.send({
+        cmd: "quit",
+        dying_message: dyingMessage,
+        req_id: "",
+      });
+    } catch (error) {
+      console.log("Quit command failed, forcing disconnect:", error);
+    }
+
+    // Clear session storage and disconnect
+    wsClient.disconnect(true); // true = clear session
   },
 
   async joinChannel(channelName: string): Promise<void> {
@@ -412,16 +575,21 @@ export const chatAPI = {
 
     if (response.okay) {
       const channels = response.data?.channels || [];
-      
+
       // Update available channels in store (only those with users)
-      const channelsWithUsers = channels.filter((ch: ChannelInfo) => ch.user_count > 0);
-      const availableChannelsObj = channelsWithUsers.reduce((acc: Record<string, ChannelInfo>, ch: ChannelInfo) => {
-        acc[ch.id.toString()] = ch;
-        return acc;
-      }, {});
-      
+      const channelsWithUsers = channels.filter(
+        (ch: ChannelInfo) => ch.user_count > 0,
+      );
+      const availableChannelsObj = channelsWithUsers.reduce(
+        (acc: Record<string, ChannelInfo>, ch: ChannelInfo) => {
+          acc[ch.id.toString()] = ch;
+          return acc;
+        },
+        {},
+      );
+
       setAppState("availableChannels", availableChannelsObj);
-      
+
       return channels;
     } else {
       throw new Error(response.error || "Failed to list channels");
@@ -545,11 +713,14 @@ export const getters = {
     const channelId = currentChannel();
     return channelId ? appState.channelUsers[channelId] || [] : [];
   },
-  getChannelList: () => Object.values(appState.channels).sort((a, b) => a.name.localeCompare(b.name)),
+  getChannelList: () =>
+    Object.values(appState.channels).sort((a, b) =>
+      a.name.localeCompare(b.name),
+    ),
   getAvailableChannels: () => {
     const joinedChannelIds = new Set(Object.keys(appState.channels));
     return Object.values(appState.availableChannels)
-      .filter(ch => !joinedChannelIds.has(ch.id.toString()))
+      .filter((ch) => !joinedChannelIds.has(ch.id.toString()))
       .sort((a, b) => a.name.localeCompare(b.name));
   },
 };

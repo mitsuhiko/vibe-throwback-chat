@@ -22,7 +22,6 @@ export function ChatLayout() {
           <h1 class="text-xl font-bold text-white">ThrowBackChat</h1>
           <Show when={getters.getCurrentChannelData()}>
             <div class="flex items-center space-x-2">
-              <span class="text-gray-400">#</span>
               <span class="font-medium">
                 {getters.getCurrentChannelData()?.name}
               </span>
@@ -64,9 +63,14 @@ export function ChatLayout() {
                     Welcome to ThrowBackChat
                   </h2>
                   <p class="text-gray-500">
-                    Select a channel from the sidebar or join a new one to start chatting.
+                    Select a channel from the sidebar or join a new one to start
+                    chatting.
                     <br />
-                    You can also use commands like <span class="font-mono text-gray-300">/join #channelname</span> below.
+                    You can also use commands like{" "}
+                    <span class="font-mono text-gray-300">
+                      /join #channelname
+                    </span>{" "}
+                    below.
                   </p>
                 </div>
               </div>
@@ -76,7 +80,7 @@ export function ChatLayout() {
               <ChatArea />
             </div>
           </Show>
-          
+
           {/* Message Input - Always visible */}
           <div class="flex-shrink-0">
             <MessageInput />

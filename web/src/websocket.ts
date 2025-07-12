@@ -20,6 +20,8 @@ export class WebSocketClient {
   private baseReconnectDelay = 1000;
   private heartbeatInterval = 30000; // 30 seconds
   private url: string;
+  private sessionId: string | null = null;
+  private readonly SESSION_STORAGE_KEY = "tbchat_session_id";
 
   // Signals for reactive state
   private connectionStateSignal = createSignal<ConnectionState>("disconnected");
@@ -31,6 +33,7 @@ export class WebSocketClient {
 
   constructor(url: string = "/ws") {
     this.url = url;
+    this.loadStoredSessionId();
 
     // React to connection state changes
     createEffect(() => {
@@ -46,18 +49,28 @@ export class WebSocketClient {
     return this.lastErrorSignal[0]();
   }
 
-  public connect(): void {
+  public connect(sessionId?: string): void {
     if (this.ws?.readyState === WebSocket.OPEN) {
       return;
+    }
+
+    // Use provided sessionId or stored one
+    if (sessionId) {
+      this.sessionId = sessionId;
+      this.storeSessionId(sessionId);
     }
 
     this.connectionStateSignal[1]("connecting");
     this.lastErrorSignal[1](null);
 
     try {
-      // Construct WebSocket URL
+      // Construct WebSocket URL with session ID if available
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-      const wsUrl = `${protocol}//${window.location.host}${this.url}`;
+      let wsUrl = `${protocol}//${window.location.host}${this.url}`;
+
+      if (this.sessionId) {
+        wsUrl += `?session_id=${encodeURIComponent(this.sessionId)}`;
+      }
 
       this.ws = new WebSocket(wsUrl);
       this.setupEventHandlers();
@@ -71,13 +84,18 @@ export class WebSocketClient {
     }
   }
 
-  public disconnect(): void {
+  public disconnect(clearSession = false): void {
     this.clearTimers();
     this.reconnectAttempts = 0;
 
     if (this.ws) {
       this.ws.close(1000, "User initiated disconnect");
       this.ws = null;
+    }
+
+    if (clearSession) {
+      this.clearStoredSessionId();
+      this.sessionId = null;
     }
 
     this.connectionStateSignal[1]("disconnected");
@@ -235,6 +253,50 @@ export class WebSocketClient {
     if (this.ws) {
       this.ws.close();
       this.ws = null;
+    }
+  }
+
+  public getSessionId(): string | null {
+    return this.sessionId;
+  }
+
+  public setSessionId(sessionId: string): void {
+    this.sessionId = sessionId;
+    this.storeSessionId(sessionId);
+  }
+
+  public clearSession(): void {
+    this.sessionId = null;
+    this.clearStoredSessionId();
+  }
+
+  private loadStoredSessionId(): void {
+    try {
+      const stored = sessionStorage.getItem(this.SESSION_STORAGE_KEY);
+      if (stored) {
+        this.sessionId = stored;
+        console.log("Loaded stored session ID:", stored);
+      }
+    } catch (error) {
+      console.warn("Failed to load session ID from storage:", error);
+    }
+  }
+
+  private storeSessionId(sessionId: string): void {
+    try {
+      sessionStorage.setItem(this.SESSION_STORAGE_KEY, sessionId);
+      console.log("Stored session ID:", sessionId);
+    } catch (error) {
+      console.warn("Failed to store session ID:", error);
+    }
+  }
+
+  private clearStoredSessionId(): void {
+    try {
+      sessionStorage.removeItem(this.SESSION_STORAGE_KEY);
+      console.log("Cleared stored session ID");
+    } catch (error) {
+      console.warn("Failed to clear session ID from storage:", error);
     }
   }
 }

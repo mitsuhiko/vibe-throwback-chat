@@ -13,8 +13,9 @@ type WSLoginRequest struct {
 }
 
 type WSLoginResponse struct {
-	UserID   int    `json:"user_id"`
-	Nickname string `json:"nickname"`
+	UserID    int    `json:"user_id"`
+	Nickname  string `json:"nickname"`
+	SessionID string `json:"session_id"`
 }
 
 func (h *WebSocketHandler) HandleLogin(sess *chat.Session, data []byte) error {
@@ -51,7 +52,8 @@ func (h *WebSocketHandler) HandleLogin(sess *chat.Session, data []byte) error {
 	log.Printf("User %s (ID: %d) logged in on session %s", user.Nickname, user.ID, sess.ID)
 
 	return sess.RespondSuccess(req.ReqID, WSLoginResponse{
-		UserID:   user.ID,
-		Nickname: user.Nickname,
+		UserID:    user.ID,
+		Nickname:  user.Nickname,
+		SessionID: sess.ID,
 	})
 }

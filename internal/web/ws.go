@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"time"
 
 	"throwback-chat/internal/chat"
 	"throwback-chat/internal/db"
+	"throwback-chat/internal/models"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
@@ -92,11 +94,33 @@ func (h *WebSocketHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	sessionID := uuid.New().String()
-	session := h.sessions.AddSession(sessionID, conn)
+	// Check for existing session ID in query parameters
+	var sessionID string
+	var session *chat.Session
+	existingSessionID := r.URL.Query().Get("session_id")
+
+	if existingSessionID != "" {
+		// Try to reuse existing session
+		if existingSession := h.sessions.GetSession(existingSessionID); existingSession != nil {
+			log.Printf("Reusing existing session: %s", existingSessionID)
+			sessionID = existingSessionID
+			// Transfer the connection to the existing session
+			h.sessions.TransferConnection(existingSessionID, conn)
+			session = existingSession
+		} else {
+			log.Printf("Requested session %s not found, creating new session", existingSessionID)
+			sessionID = uuid.New().String()
+			session = h.sessions.AddSession(sessionID, conn)
+		}
+	} else {
+		// Create new session
+		sessionID = uuid.New().String()
+		session = h.sessions.AddSession(sessionID, conn)
+	}
 
 	defer func() {
-		h.sessions.RemoveSession(sessionID)
+		// Generate leave events for unexpected disconnections
+		h.handleUnexpectedDisconnect(sessionID)
 		conn.Close()
 	}()
 
@@ -136,6 +160,10 @@ func (h *WebSocketHandler) handleMessage(sess *chat.Session, data []byte) error 
 		return h.HandleLogin(sess, data)
 	case "logout":
 		return h.HandleLogout(sess, data)
+	case "quit":
+		return h.HandleQuit(sess, data)
+	case "session_info":
+		return h.HandleSessionInfo(sess, data)
 	case "heartbeat":
 		return h.HandleHeartbeat(sess, msg.ReqID)
 	case "join":
@@ -165,4 +193,50 @@ func (h *WebSocketHandler) handleMessage(sess *chat.Session, data []byte) error 
 	default:
 		return sess.RespondError(msg.ReqID, "Unknown command", nil)
 	}
+}
+
+// handleUnexpectedDisconnect generates leave events when a session disconnects unexpectedly
+func (h *WebSocketHandler) handleUnexpectedDisconnect(sessionID string) {
+	session := h.sessions.GetSession(sessionID)
+	if session == nil {
+		return
+	}
+
+	// Check if user was logged in
+	if session.UserID == nil || session.Nickname == nil {
+		// Not logged in, just remove the session normally
+		h.sessions.RemoveSession(sessionID)
+		return
+	}
+
+	userID := *session.UserID
+	nickname := *session.Nickname
+	channels := session.GetChannels()
+
+	log.Printf("Generating leave events for unexpected disconnect of user %s (ID: %d)", nickname, userID)
+
+	// Send leave events to all channels the user was in
+	for _, channelID := range channels {
+		// Create database record
+		_, err := models.CreateMessage(h.db, &channelID, userID, "connection lost", "left", nickname, false)
+		if err != nil {
+			log.Printf("Failed to create leave message for channel %d: %v", channelID, err)
+			continue
+		}
+
+		// Broadcast leave event to other users in the channel
+		leaveEvent := map[string]interface{}{
+			"type":       "event",
+			"channel_id": channelID,
+			"event":      "left",
+			"user_id":    userID,
+			"nickname":   nickname,
+			"sent_at":    time.Now().UTC().Format(time.RFC3339),
+		}
+
+		h.sessions.BroadcastToChannel(channelID, leaveEvent)
+	}
+
+	// For logged-in users, disconnect but keep session alive for potential reconnection
+	h.sessions.DisconnectSession(sessionID)
 }

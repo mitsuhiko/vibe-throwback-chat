@@ -75,6 +75,15 @@ export interface HeartbeatRequest extends BaseRequest {
   cmd: "heartbeat";
 }
 
+export interface QuitRequest extends BaseRequest {
+  cmd: "quit";
+  dying_message?: string;
+}
+
+export interface SessionInfoRequest extends BaseRequest {
+  cmd: "session_info";
+}
+
 export interface ListChannelsRequest extends BaseRequest {
   cmd: "list_channels";
 }
@@ -99,6 +108,7 @@ export interface ChannelUsersRequest extends BaseRequest {
 export type WebSocketRequest =
   | LoginRequest
   | LogoutRequest
+  | QuitRequest
   | JoinRequest
   | LeaveRequest
   | MessageRequest
@@ -108,6 +118,7 @@ export type WebSocketRequest =
   | MeRequest
   | AnnounceRequest
   | HeartbeatRequest
+  | SessionInfoRequest
   | ListChannelsRequest
   | MyChannelsRequest
   | HistoryRequest
