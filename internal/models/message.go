@@ -99,8 +99,9 @@ func GetMessageHistory(database *db.DB, channelID int, options MessageHistoryOpt
 
 	err := database.ReadDBX().Select(&messages, query, args...)
 
-	// If we got messages after a specific ID, reverse them to maintain chronological order
-	if options.After != nil && options.Before == nil {
+	// Reverse messages to maintain chronological order (oldest first, newest last)
+	// This is needed for "after" queries and default recent message queries
+	if (options.After != nil && options.Before == nil) || (options.Before == nil && options.After == nil) {
 		for i, j := 0, len(messages)-1; i < j; i, j = i+1, j-1 {
 			messages[i], messages[j] = messages[j], messages[i]
 		}

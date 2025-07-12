@@ -107,6 +107,8 @@ func (h *WebSocketHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 			// Transfer the connection to the existing session
 			h.sessions.TransferConnection(existingSessionID, conn)
 			session = existingSession
+			// Generate join events for session restoration if user was logged in
+			h.generateJoinEventsForSessionRestore(session)
 		} else {
 			log.Printf("Requested session %s not found, creating new session", existingSessionID)
 			sessionID = uuid.New().String()
@@ -239,4 +241,43 @@ func (h *WebSocketHandler) handleUnexpectedDisconnect(sessionID string) {
 
 	// For logged-in users, disconnect but keep session alive for potential reconnection
 	h.sessions.DisconnectSession(sessionID)
+}
+
+// generateJoinEventsForSessionRestore generates join events when a disconnected session reconnects
+func (h *WebSocketHandler) generateJoinEventsForSessionRestore(session *chat.Session) {
+	// Only generate events if user is logged in
+	if session.UserID == nil || session.Nickname == nil {
+		return
+	}
+
+	userID := *session.UserID
+	nickname := *session.Nickname
+	channels := session.GetChannels()
+
+	if len(channels) == 0 {
+		return
+	}
+
+	log.Printf("Generating join events for session restore of user %s (ID: %d) in %d channels", nickname, userID, len(channels))
+
+	// Send join events to all channels the user is in
+	for _, channelID := range channels {
+		// Create database record
+		_, err := models.CreateMessage(h.db, &channelID, userID, "", "joined", nickname, false)
+		if err != nil {
+			log.Printf("Failed to create join message for channel %d: %v", channelID, err)
+			continue
+		}
+
+		// Broadcast join event to other users in the channel
+		joinEvent := map[string]interface{}{
+			"type":       "event",
+			"channel_id": channelID,
+			"event":      "joined",
+			"user_id":    userID,
+			"nickname":   nickname,
+			"sent_at":    time.Now().UTC().Format(time.RFC3339),
+		}
+		h.sessions.BroadcastToChannel(channelID, joinEvent)
+	}
 }
