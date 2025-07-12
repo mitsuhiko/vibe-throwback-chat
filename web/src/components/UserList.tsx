@@ -1,11 +1,4 @@
-import {
-  For,
-  Show,
-  createSignal,
-  onMount,
-  onCleanup,
-  createEffect,
-} from "solid-js";
+import { For, Show, createSignal, onMount, onCleanup } from "solid-js";
 import { getters, currentUser, chatAPI, connectionState } from "../store";
 import type { ChannelUser } from "../types";
 
@@ -17,10 +10,6 @@ export function UserList() {
     y: number;
     user: ChannelUser;
   } | null>(null);
-  const [selectedUser, setSelectedUser] = createSignal<ChannelUser | null>(
-    null,
-  );
-  const [isLoading, setIsLoading] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
 
   const isConnected = () => connectionState() === "connected";
@@ -64,7 +53,6 @@ export function UserList() {
     const channelId = currentChannelData()?.id;
     if (channelId && isConnected()) {
       try {
-        setIsLoading(true);
         setError(null);
         await chatAPI.kickUser(channelId, user.id.toString());
         setContextMenu(null);
@@ -73,8 +61,6 @@ export function UserList() {
         setError(
           `Failed to kick ${user.nickname}: ${error instanceof Error ? error.message : "Unknown error"}`,
         );
-      } finally {
-        setIsLoading(false);
       }
     } else if (!isConnected()) {
       setError("Cannot kick user: Not connected to server");

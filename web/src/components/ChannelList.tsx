@@ -31,7 +31,6 @@ export function ChannelList() {
     // Load channel data if not already loaded, and verify we're actually in the channel
     try {
       const channelMessages = appState.messages[channelId] || [];
-      const channelUsers = appState.channelUsers[channelId] || [];
 
       // Always try to get channel users to verify we're in the channel
       try {

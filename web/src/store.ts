@@ -35,6 +35,58 @@ const [appState, setAppState] = createStore<AppState>({
   ops: {},
 });
 
+// Temporary notification system for errors
+export interface TempNotification {
+  id: string;
+  type: "error" | "success" | "info";
+  message: string;
+  channelId?: string;
+  timestamp: number;
+}
+
+const [tempNotifications, setTempNotifications] = createStore<
+  TempNotification[]
+>([]);
+
+let notificationTimeouts = new Map<string, number>();
+
+export const showTempNotification = (
+  type: "error" | "success" | "info",
+  message: string,
+  channelId?: string,
+  duration = 5000,
+) => {
+  const id = `notif_${Date.now()}_${Math.random()}`;
+  const notification: TempNotification = {
+    id,
+    type,
+    message,
+    channelId,
+    timestamp: Date.now(),
+  };
+
+  setTempNotifications((prev) => [...prev, notification]);
+
+  // Auto-remove after duration
+  const timeoutId = setTimeout(() => {
+    setTempNotifications((prev) => prev.filter((n) => n.id !== id));
+    notificationTimeouts.delete(id);
+  }, duration);
+
+  notificationTimeouts.set(id, timeoutId);
+};
+
+export const removeTempNotification = (id: string) => {
+  const timeoutId = notificationTimeouts.get(id);
+  if (timeoutId) {
+    clearTimeout(timeoutId);
+    notificationTimeouts.delete(id);
+  }
+  setTempNotifications((prev) => prev.filter((n) => n.id !== id));
+};
+
+export const getTempNotifications = () => tempNotifications;
+
 // Create reactive signals for commonly accessed state
 const [connectionState, setConnectionState] =
   createSignal<ConnectionState>("disconnected");
@@ -100,24 +152,30 @@ function handleChatMessage(message: ChatMessage) {
 function handleChatEvent(event: ChatEvent) {
   const channelId = event.channel_id;
 
-  // Create a message representation of the event
-  const eventMessage: Message = {
-    id: `event_${Date.now()}_${Math.random()}`,
-    channel_id: channelId || "server",
-    user_id: event.user_id || "system",
-    nickname: event.nickname || "System",
-    message: formatEventMessage(event),
-    is_passive: true,
-    event: event.event,
-    sent_at: event.sent_at,
-  };
+  // Don't show join/leave notifications as messages
+  const shouldShowAsMessage =
+    event.event !== "joined" && event.event !== "left";
 
-  // Add event as message
-  if (channelId) {
-    setAppState("messages", channelId, (messages = []) => [
-      ...messages,
-      eventMessage,
-    ]);
+  if (shouldShowAsMessage) {
+    // Create a message representation of the event
+    const eventMessage: Message = {
+      id: `event_${Date.now()}_${Math.random()}`,
+      channel_id: channelId || "server",
+      user_id: event.user_id || "system",
+      nickname: event.nickname || "System",
+      message: formatEventMessage(event),
+      is_passive: true,
+      event: event.event,
+      sent_at: event.sent_at,
+    };
+
+    // Add event as message
+    if (channelId) {
+      setAppState("messages", channelId, (messages = []) => [
+        ...messages,
+        eventMessage,
+      ]);
+    }
   }
 
   // Handle specific event types - for real-time user updates, refresh the channel users list

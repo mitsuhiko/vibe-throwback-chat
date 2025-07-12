@@ -267,14 +267,8 @@ func (h *WebSocketHandler) generateJoinEventsForSessionRestore(session *chat.Ses
 
 	// Send join events to all channels the user is in
 	for _, channelID := range channels {
-		// Create database record
-		_, err := models.CreateMessage(h.db, &channelID, userID, "", "joined", nickname, false)
-		if err != nil {
-			log.Printf("Failed to create join message for channel %d: %v", channelID, err)
-			continue
-		}
-
-		// Broadcast join event to other users in the channel
+		// For session restore, only broadcast to other users - don't create new DB records
+		// since the user was already in the channel and there should be an existing join event
 		joinEvent := map[string]interface{}{
 			"type":       "event",
 			"channel_id": channelID,

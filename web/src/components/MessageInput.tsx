@@ -1,5 +1,10 @@
-import { createSignal, Show, For, createEffect, onCleanup } from "solid-js";
-import { currentChannel, chatAPI, getters, appState } from "../store";
+import { createSignal, Show, For, onCleanup } from "solid-js";
+import {
+  currentChannel,
+  chatAPI,
+  getters,
+  showTempNotification,
+} from "../store";
 import {
   parseCommand,
   getCommandSuggestions,
@@ -51,13 +56,11 @@ export function MessageInput() {
       switch (command) {
         case "join":
           await chatAPI.joinChannel(args[0]);
-          showFeedback("success", `Joined channel ${args[0]}`);
           break;
 
         case "leave":
         case "part":
           await chatAPI.leaveChannel(channelId);
-          showFeedback("success", "Left channel");
           break;
 
         case "nick":
@@ -109,7 +112,12 @@ export function MessageInput() {
           throw new Error(`Unknown command: /${command}`);
       }
     } catch (error: any) {
-      showFeedback("error", error.message || "Command failed");
+      // Show errors as temporary notifications in the channel
+      showTempNotification(
+        "error",
+        error.message || "Command failed",
+        channelId,
+      );
       throw error; // Re-throw to be handled by caller
     }
   };
@@ -172,7 +180,11 @@ export function MessageInput() {
       setMessage("");
     } catch (error: any) {
       console.error("Failed to send message/command:", error);
-      showFeedback("error", error.message || "Failed to send");
+      showTempNotification(
+        "error",
+        error.message || "Failed to send",
+        channelId || undefined,
+      );
     } finally {
       setIsSending(false);
       // Focus the input after sending (in finally block to ensure it happens)

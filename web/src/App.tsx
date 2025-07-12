@@ -3,6 +3,7 @@ import { currentUser, connectionState, chatAPI } from "./store";
 import { wsClient } from "./websocket";
 import { Login } from "./components/Login";
 import { ChatLayout } from "./components/ChatLayout";
+import { TempNotifications } from "./components/TempNotifications";
 
 function App() {
   const [health, setHealth] = createSignal<any>(null);
@@ -117,6 +118,7 @@ function App() {
       <Show when={currentUser()} fallback={<Login />}>
         <div class="relative">
           <ChatLayout />
+          <TempNotifications />
           <DebugOverlay />
 
           {/* Debug Toggle Button */}
