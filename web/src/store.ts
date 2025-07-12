@@ -53,7 +53,9 @@ export interface TempNotification {
 
 // Temp notifications store - wrapped in createRoot to prevent disposal warnings
 let tempNotifications: TempNotification[];
-let setTempNotifications: import("solid-js/store").SetStoreFunction<TempNotification[]>;
+let setTempNotifications: import("solid-js/store").SetStoreFunction<
+  TempNotification[]
+>;
 
 createRoot(() => {
   const result = createStore<TempNotification[]>([]);
@@ -185,30 +187,24 @@ function handleChatMessage(message: ChatMessage) {
 function handleChatEvent(event: ChatEvent) {
   const channelId = event.channel_id;
 
-  // Don't show join/leave notifications as messages
-  const shouldShowAsMessage =
-    event.event !== "joined" && event.event !== "left";
+  // Create a message representation of the event
+  const eventMessage: Message = {
+    id: `event_${Date.now()}_${Math.random()}`,
+    channel_id: channelId || "server",
+    user_id: event.user_id || "system",
+    nickname: event.nickname || "System",
+    message: formatEventMessage(event),
+    is_passive: true,
+    event: event.event,
+    sent_at: event.sent_at,
+  };
 
-  if (shouldShowAsMessage) {
-    // Create a message representation of the event
-    const eventMessage: Message = {
-      id: `event_${Date.now()}_${Math.random()}`,
-      channel_id: channelId || "server",
-      user_id: event.user_id || "system",
-      nickname: event.nickname || "System",
-      message: formatEventMessage(event),
-      is_passive: true,
-      event: event.event,
-      sent_at: event.sent_at,
-    };
-
-    // Add event as message
-    if (channelId) {
-      setAppState("messages", channelId, (messages = []) => [
-        ...messages,
-        eventMessage,
-      ]);
-    }
+  // Add event as message
+  if (channelId) {
+    setAppState("messages", channelId, (messages = []) => [
+      ...messages,
+      eventMessage,
+    ]);
   }
 
   // Handle specific event types - for real-time user updates, refresh the channel users list
