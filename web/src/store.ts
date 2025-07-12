@@ -286,7 +286,7 @@ export const chatAPI = {
   async leaveChannel(channelId: string): Promise<void> {
     const response = await wsClient.send<any>({
       cmd: "leave",
-      channel_id: channelId,
+      channel_id: parseInt(channelId),
       req_id: "",
     } as LeaveRequest);
 

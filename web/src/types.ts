@@ -31,7 +31,7 @@ export interface JoinRequest extends BaseRequest {
 export interface LeaveRequest extends BaseRequest {
   cmd: "leave";
   channel_name?: string;
-  channel_id?: string;
+  channel_id?: number;
 }
 
 export interface MessageRequest extends BaseRequest {
