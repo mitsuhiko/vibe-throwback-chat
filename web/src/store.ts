@@ -207,8 +207,8 @@ export const chatAPI = {
 
     if (response.okay) {
       setCurrentUser({
-        id: response.user_id,
-        nickname: response.nickname || nickname,
+        id: response.data.user_id,
+        nickname: response.data.nickname || nickname,
         is_serv: false,
       });
       
@@ -220,7 +220,7 @@ export const chatAPI = {
         });
         
         if (myChannelsResponse.okay) {
-          const channels = myChannelsResponse.channels || [];
+          const channels = myChannelsResponse.data.channels || [];
           channels.forEach((channel: any) => {
             setAppState("channels", channel.id, channel);
           });
@@ -252,22 +252,22 @@ export const chatAPI = {
 
     if (response.okay) {
       const channel: Channel = {
-        id: response.channel_id,
-        name: response.channel_name,
+        id: response.data.channel_id.toString(),
+        name: response.data.channel_name,
         topic: "",
       };
       
-      setAppState("channels", response.channel_id, channel);
-      setCurrentChannel(response.channel_id);
+      setAppState("channels", response.data.channel_id.toString(), channel);
+      setCurrentChannel(response.data.channel_id.toString());
 
       // Load message history and channel users for the channel
       try {
         const [{ messages }, users] = await Promise.all([
-          this.getHistory(response.channel_id, undefined, 50),
-          this.getChannelUsers(response.channel_id)
+          this.getHistory(response.data.channel_id.toString(), undefined, 50),
+          this.getChannelUsers(response.data.channel_id.toString())
         ]);
-        setAppState("messages", response.channel_id, messages);
-        setAppState("channelUsers", response.channel_id, users);
+        setAppState("messages", response.data.channel_id.toString(), messages);
+        setAppState("channelUsers", response.data.channel_id.toString(), users);
       } catch (error) {
         console.error("Failed to load channel data:", error);
         // Don't fail the join if loading fails
@@ -472,7 +472,7 @@ export const chatAPI = {
 
       return {
         messages,
-        hasMore: response.has_more || false,
+        hasMore: response.data?.has_more || false,
       };
     } else {
       throw new Error(response.error || "Failed to get message history");
