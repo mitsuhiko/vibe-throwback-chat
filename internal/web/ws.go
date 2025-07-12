@@ -27,23 +27,41 @@ type WSRequest struct {
 	ReqID string `json:"req_id,omitempty"`
 }
 
-type WSResponse struct {
-	Type  string      `json:"type"`
-	ReqID string      `json:"req_id"`
-	Okay  bool        `json:"okay"`
-	Error string      `json:"error,omitempty"`
-	Data  interface{} `json:"data,omitempty"`
+// WSEvent represents a WebSocket event message
+type WSEvent struct {
+	Type      string `json:"type"`
+	ChannelID int    `json:"channel_id"`
+	Event     string `json:"event"`
+	UserID    int    `json:"user_id"`
+	Nickname  string `json:"nickname"`
+	SentAt    string `json:"sent_at"`
 }
 
-func NewWSResponse(reqID string, okay bool, err string, data interface{}) WSResponse {
-	return WSResponse{
-		Type:  "response",
-		ReqID: reqID,
-		Okay:  okay,
-		Error: err,
-		Data:  data,
-	}
+// SessionInfoResponse represents the response data for session_info command
+type SessionInfoResponse struct {
+	SessionID string        `json:"session_id"`
+	UserID    int           `json:"user_id"`
+	Nickname  string        `json:"nickname"`
+	Channels  []ChannelInfo `json:"channels"`
 }
+
+// ChannelInfo represents channel information in session_info response
+type ChannelInfo struct {
+	ID    int    `json:"id"`
+	Name  string `json:"name"`
+	Topic string `json:"topic"`
+}
+
+// ChannelUsersResponse represents the response data for channel_users command
+type ChannelUsersResponse struct {
+	Users []models.ChannelUser `json:"users"`
+}
+
+// QuitResponse represents the response data for quit command
+type QuitResponse struct {
+	Message string `json:"message"`
+}
+
 
 func ParseWSMessage(data []byte) (*WSRequest, error) {
 	var msg WSRequest
@@ -232,13 +250,13 @@ func (h *WebSocketHandler) handleUnexpectedDisconnect(sessionID string) {
 		}
 
 		// Broadcast leave event to other users in the channel
-		leaveEvent := map[string]interface{}{
-			"type":       "event",
-			"channel_id": channelID,
-			"event":      "left",
-			"user_id":    userID,
-			"nickname":   nickname,
-			"sent_at":    time.Now().UTC().Format(time.RFC3339),
+		leaveEvent := WSEvent{
+			Type:      "event",
+			ChannelID: channelID,
+			Event:     "left",
+			UserID:    userID,
+			Nickname:  nickname,
+			SentAt:    time.Now().UTC().Format(time.RFC3339),
 		}
 
 		h.sessions.BroadcastToChannel(channelID, leaveEvent)
@@ -269,13 +287,13 @@ func (h *WebSocketHandler) generateJoinEventsForSessionRestore(session *chat.Ses
 	for _, channelID := range channels {
 		// For session restore, only broadcast to other users - don't create new DB records
 		// since the user was already in the channel and there should be an existing join event
-		joinEvent := map[string]interface{}{
-			"type":       "event",
-			"channel_id": channelID,
-			"event":      "joined",
-			"user_id":    userID,
-			"nickname":   nickname,
-			"sent_at":    time.Now().UTC().Format(time.RFC3339),
+		joinEvent := WSEvent{
+			Type:      "event",
+			ChannelID: channelID,
+			Event:     "joined",
+			UserID:    userID,
+			Nickname:  nickname,
+			SentAt:    time.Now().UTC().Format(time.RFC3339),
 		}
 		h.sessions.BroadcastToChannel(channelID, joinEvent)
 	}
@@ -311,13 +329,13 @@ func (h *WebSocketHandler) handleExpiredSession(sessionID string) {
 		}
 
 		// Broadcast leave event to other users in the channel
-		leaveEvent := map[string]interface{}{
-			"type":       "event",
-			"channel_id": channelID,
-			"event":      "left",
-			"user_id":    userID,
-			"nickname":   nickname,
-			"sent_at":    time.Now().UTC().Format(time.RFC3339),
+		leaveEvent := WSEvent{
+			Type:      "event",
+			ChannelID: channelID,
+			Event:     "left",
+			UserID:    userID,
+			Nickname:  nickname,
+			SentAt:    time.Now().UTC().Format(time.RFC3339),
 		}
 
 		h.sessions.BroadcastToChannel(channelID, leaveEvent)

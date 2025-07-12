@@ -9,6 +9,15 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+// WSResponse represents a WebSocket response message
+type WSResponse struct {
+	Type  string      `json:"type"`
+	ReqID string      `json:"req_id"`
+	Okay  bool        `json:"okay"`
+	Error string      `json:"error,omitempty"`
+	Data  interface{} `json:"data,omitempty"`
+}
+
 type Session struct {
 	ID            string          `json:"id"`
 	UserID        *int            `json:"user_id,omitempty"`
@@ -307,22 +316,22 @@ func (s *Session) RespondError(reqID string, errorMsg string, originalErr error)
 		log.Printf("Session %s error (req_id: %s): %s - original error: %v", s.ID, reqID, errorMsg, originalErr)
 	}
 
-	response := map[string]interface{}{
-		"type":   "response",
-		"req_id": reqID,
-		"okay":   false,
-		"error":  errorMsg,
+	response := WSResponse{
+		Type:  "response",
+		ReqID: reqID,
+		Okay:  false,
+		Error: errorMsg,
 	}
 	return s.SendMessage(response)
 }
 
 // RespondSuccess sends a success response for a WebSocket request
 func (s *Session) RespondSuccess(reqID string, data interface{}) error {
-	response := map[string]interface{}{
-		"type":   "response",
-		"req_id": reqID,
-		"okay":   true,
-		"data":   data,
+	response := WSResponse{
+		Type:  "response",
+		ReqID: reqID,
+		Okay:  true,
+		Data:  data,
 	}
 	return s.SendMessage(response)
 }

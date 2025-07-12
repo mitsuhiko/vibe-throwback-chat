@@ -67,8 +67,8 @@ func (h *WebSocketHandler) HandleChannelUsers(sess *chat.Session, data []byte) e
 	}
 
 	// Send response
-	response := map[string]interface{}{
-		"users": users,
+	response := ChannelUsersResponse{
+		Users: users,
 	}
 
 	return sess.RespondSuccess(req.ReqID, response)

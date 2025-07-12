@@ -19,15 +19,6 @@ type WSJoinResponse struct {
 	ChannelName string `json:"channel_name"`
 }
 
-type WSEvent struct {
-	Type      string `json:"type"`
-	ChannelID int    `json:"channel_id"`
-	Event     string `json:"event"`
-	UserID    int    `json:"user_id"`
-	Nickname  string `json:"nickname"`
-	SentAt    string `json:"sent_at"`
-}
-
 func (h *WebSocketHandler) HandleJoin(sess *chat.Session, data []byte) error {
 	var req WSJoinRequest
 	if err := DecodeWSData(sess, data, "", &req); err != nil {

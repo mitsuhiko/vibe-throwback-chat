@@ -61,7 +61,7 @@ func (h *WebSocketHandler) HandleQuit(sess *chat.Session, data []byte) error {
 	}
 
 	// Send success response
-	if err := sess.RespondSuccess(req.ReqID, map[string]interface{}{"message": "Goodbye!"}); err != nil {
+	if err := sess.RespondSuccess(req.ReqID, QuitResponse{Message: "Goodbye!"}); err != nil {
 		log.Printf("Failed to send quit response: %v", err)
 	}
 
