@@ -123,10 +123,44 @@ function handleChatEvent(event: ChatEvent) {
   // Handle specific event types - for real-time user updates, refresh the channel users list
   switch (event.event) {
     case "joined":
+      if (channelId) {
+        // Refresh channel users when someone joins
+        refreshChannelUsers(channelId);
+        // Also refresh the available channels list to update user counts
+        refreshChannelList();
+      }
+      break;
+
     case "left":
       if (channelId) {
-        // Refresh channel users when someone joins or leaves
-        refreshChannelUsers(channelId);
+        // Check if the person who left was the current user
+        if (event.user_id === currentUser()?.id) {
+          // If I left the channel, remove it from my state completely
+          setAppState("channels", (channels) => {
+            const { [channelId]: removed, ...rest } = channels;
+            return rest;
+          });
+
+          setAppState("messages", (messages) => {
+            const { [channelId]: removed, ...rest } = messages;
+            return rest;
+          });
+
+          setAppState("channelUsers", (channelUsers) => {
+            const { [channelId]: removed, ...rest } = channelUsers;
+            return rest;
+          });
+
+          // If this was the current channel, clear it
+          if (currentChannel() === channelId) {
+            setCurrentChannel(null);
+          }
+        } else {
+          // Someone else left, just refresh channel users
+          refreshChannelUsers(channelId);
+        }
+        // Always refresh the available channels list to update user counts
+        refreshChannelList();
       }
       break;
 
@@ -345,6 +379,15 @@ async function refreshChannelUsers(channelId: string) {
     setAppState("channelUsers", channelId, users);
   } catch (error) {
     console.error("Failed to refresh channel users:", error);
+  }
+}
+
+// Helper function to refresh available channels list
+async function refreshChannelList() {
+  try {
+    await chatAPI.listChannels();
+  } catch (error) {
+    console.error("Failed to refresh channel list:", error);
   }
 }
 

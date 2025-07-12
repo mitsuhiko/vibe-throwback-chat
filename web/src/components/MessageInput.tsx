@@ -175,6 +175,12 @@ export function MessageInput() {
       showFeedback("error", error.message || "Failed to send");
     } finally {
       setIsSending(false);
+      // Focus the input after sending (in finally block to ensure it happens)
+      setTimeout(() => {
+        if (textareaRef) {
+          textareaRef.focus();
+        }
+      }, 0);
     }
   };
 

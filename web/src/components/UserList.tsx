@@ -298,7 +298,7 @@ export function UserList() {
         <div class="p-3 border-t border-gray-700 bg-gray-800">
           <div class="text-xs text-gray-400">
             <div class="font-medium">
-              #{getters.getCurrentChannelData()?.name}
+              {getters.getCurrentChannelData()?.name}
             </div>
             <Show when={getters.getCurrentChannelData()?.topic}>
               <div

@@ -15,19 +15,60 @@ export function ChannelList() {
   });
 
   const handleChannelSelect = async (channelId: string) => {
-    // Check if channel data exists before switching
-    const channelMessages = appState.messages[channelId] || [];
-    const channelUsers = appState.channelUsers[channelId] || [];
+    // Check if we're actually joined to this channel
+    const isJoined = appState.channels[channelId] !== undefined;
 
+    if (!isJoined) {
+      // If not joined, this should not happen for joined channels
+      // This likely means there's a state issue - the channel shouldn't appear in joined list
+      console.error("Channel appears joined but not in state - this is a bug");
+      return;
+    }
+
+    // At this point we should be joined to the channel
     setCurrentChannel(channelId);
 
-    // Load channel data if not already loaded
+    // Load channel data if not already loaded, and verify we're actually in the channel
     try {
-      if (channelMessages.length === 0 || channelUsers.length === 0) {
-        await Promise.all([
-          chatAPI.getHistory(channelId, undefined, 50).catch(console.error),
-          chatAPI.getChannelUsers(channelId).catch(console.error),
-        ]);
+      const channelMessages = appState.messages[channelId] || [];
+      const channelUsers = appState.channelUsers[channelId] || [];
+
+      // Always try to get channel users to verify we're in the channel
+      try {
+        await chatAPI.getChannelUsers(channelId);
+
+        // If we successfully got users, load history if needed
+        if (channelMessages.length === 0) {
+          await chatAPI.getHistory(channelId, undefined, 50);
+        }
+      } catch (error) {
+        // If getting channel users failed, it likely means we're not actually in the channel
+        console.log(
+          "Failed to get channel users, might not be in channel:",
+          error,
+        );
+        const channel = appState.channels[channelId];
+        if (channel) {
+          console.log(
+            "Attempting to rejoin channel due to state inconsistency:",
+            channel.name,
+          );
+          try {
+            // Try to rejoin the channel
+            await chatAPI.joinChannel(channel.name);
+            console.log("Successfully rejoined channel:", channel.name);
+
+            // Now load the data
+            await Promise.all([
+              chatAPI.getChannelUsers(channelId),
+              chatAPI.getHistory(channelId, undefined, 50),
+            ]);
+          } catch (rejoinError) {
+            console.error("Failed to rejoin channel:", rejoinError);
+            // If rejoin fails, remove the stale channel from state
+            await chatAPI.leaveChannel(channelId);
+          }
+        }
       }
     } catch (error) {
       console.error("Failed to load channel data:", error);
@@ -55,6 +96,8 @@ export function ChannelList() {
     e.stopPropagation();
     try {
       await chatAPI.leaveChannel(channelId);
+      // Refresh available channels after leaving
+      await chatAPI.listChannels();
     } catch (error) {
       console.error("Failed to leave channel:", error);
     }
