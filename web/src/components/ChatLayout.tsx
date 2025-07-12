@@ -64,8 +64,9 @@ export function ChatLayout() {
                     Welcome to ThrowBackChat
                   </h2>
                   <p class="text-gray-500">
-                    Select a channel from the sidebar or join a new one to start
-                    chatting
+                    Select a channel from the sidebar or join a new one to start chatting.
+                    <br />
+                    You can also use commands like <span class="font-mono text-gray-300">/join #channelname</span> below.
                   </p>
                 </div>
               </div>
@@ -74,10 +75,12 @@ export function ChatLayout() {
             <div class="flex-1 overflow-hidden">
               <ChatArea />
             </div>
-            <div class="flex-shrink-0">
-              <MessageInput />
-            </div>
           </Show>
+          
+          {/* Message Input - Always visible */}
+          <div class="flex-shrink-0">
+            <MessageInput />
+          </div>
         </div>
 
         {/* Right Sidebar - User List */}

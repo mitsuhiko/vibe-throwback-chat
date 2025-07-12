@@ -48,20 +48,20 @@ export interface NickRequest extends BaseRequest {
 
 export interface KickRequest extends BaseRequest {
   cmd: "kick";
-  user_id: string;
-  channel_id: string;
+  user_id: number;
+  channel_id: number;
   reason?: string;
 }
 
 export interface TopicRequest extends BaseRequest {
   cmd: "topic";
-  channel_id: string;
+  channel_id: number;
   topic: string;
 }
 
 export interface MeRequest extends BaseRequest {
   cmd: "me";
-  channel_id: string;
+  channel_id: number;
   message: string;
 }
 
@@ -130,7 +130,7 @@ export interface LeaveResponse extends BaseResponse {
 }
 
 export interface ListChannelsResponse extends BaseResponse {
-  channels?: Channel[];
+  channels?: ChannelInfo[];
 }
 
 export interface MyChannelsResponse extends BaseResponse {
@@ -210,6 +210,13 @@ export interface Channel {
   topic: string;
 }
 
+export interface ChannelInfo {
+  id: number;
+  name: string;
+  topic: string;
+  user_count: number;
+}
+
 export interface Message {
   id: string;
   channel_id: string;
@@ -242,6 +249,7 @@ export interface AppState {
   currentUser: User | null;
   currentChannel: string | null;
   channels: Record<string, Channel>;
+  availableChannels: Record<string, ChannelInfo>;
   messages: Record<string, Message[]>;
   channelUsers: Record<string, ChannelUser[]>; // channel_id -> ChannelUser[]
   ops: Record<string, string[]>; // channel_id -> user_ids[]

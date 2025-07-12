@@ -4,6 +4,7 @@ import { wsClient } from "./websocket";
 import type {
   User,
   Channel,
+  ChannelInfo,
   Message,
   ChannelUser,
   ConnectionState,
@@ -28,6 +29,7 @@ const [appState, setAppState] = createStore<AppState>({
   currentUser: null,
   currentChannel: null,
   channels: {},
+  availableChannels: {},
   messages: {},
   channelUsers: {},
   ops: {},
@@ -185,6 +187,7 @@ wsClient.onConnectionChange = (state: ConnectionState) => {
       currentUser: null,
       currentChannel: null,
       channels: {},
+      availableChannels: {},
       messages: {},
       channelUsers: {},
       ops: {},
@@ -351,8 +354,8 @@ export const chatAPI = {
   ): Promise<void> {
     const response = await wsClient.send({
       cmd: "kick",
-      channel_id: channelId,
-      user_id: userId,
+      channel_id: parseInt(channelId, 10),
+      user_id: parseInt(userId, 10),
       reason,
       req_id: "",
     });
@@ -401,14 +404,25 @@ export const chatAPI = {
     }
   },
 
-  async listChannels(): Promise<Channel[]> {
+  async listChannels(): Promise<ChannelInfo[]> {
     const response = await wsClient.send<any>({
       cmd: "list_channels",
       req_id: "",
     } as ListChannelsRequest);
 
     if (response.okay) {
-      return response.data?.channels || [];
+      const channels = response.data?.channels || [];
+      
+      // Update available channels in store (only those with users)
+      const channelsWithUsers = channels.filter((ch: ChannelInfo) => ch.user_count > 0);
+      const availableChannelsObj = channelsWithUsers.reduce((acc: Record<string, ChannelInfo>, ch: ChannelInfo) => {
+        acc[ch.id.toString()] = ch;
+        return acc;
+      }, {});
+      
+      setAppState("availableChannels", availableChannelsObj);
+      
+      return channels;
     } else {
       throw new Error(response.error || "Failed to list channels");
     }
@@ -531,5 +545,11 @@ export const getters = {
     const channelId = currentChannel();
     return channelId ? appState.channelUsers[channelId] || [] : [];
   },
-  getChannelList: () => Object.values(appState.channels),
+  getChannelList: () => Object.values(appState.channels).sort((a, b) => a.name.localeCompare(b.name)),
+  getAvailableChannels: () => {
+    const joinedChannelIds = new Set(Object.keys(appState.channels));
+    return Object.values(appState.availableChannels)
+      .filter(ch => !joinedChannelIds.has(ch.id.toString()))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  },
 };
