@@ -51,3 +51,11 @@ func GetUserByNickname(database *db.DB, nickname string) (*User, error) {
 
 	return &user, nil
 }
+
+func UpdateUserNickname(database *db.DB, userID int, newNickname string) error {
+	_, err := database.WriteDB().Exec("UPDATE users SET nickname = ? WHERE id = ?", newNickname, userID)
+	if err != nil {
+		return fmt.Errorf("failed to update user nickname: %w", err)
+	}
+	return nil
+}

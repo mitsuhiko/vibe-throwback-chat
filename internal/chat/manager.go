@@ -93,12 +93,41 @@ func (sm *SessionManager) GetSessions() map[string]*Session {
 	return sessions
 }
 
+func (sm *SessionManager) GetSessionsByUserID(userID int) []*Session {
+	sm.mu.RLock()
+	defer sm.mu.RUnlock()
+
+	var userSessions []*Session
+	for _, session := range sm.sessions {
+		if session.UserID != nil && *session.UserID == userID {
+			userSessions = append(userSessions, session)
+		}
+	}
+	return userSessions
+}
+
 func (sm *SessionManager) BroadcastToChannel(channelID int, message interface{}) {
 	sm.mu.RLock()
 	defer sm.mu.RUnlock()
 
 	for _, session := range sm.sessions {
 		if session.IsInChannel(channelID) {
+			go func(s *Session) {
+				if err := s.SendMessage(message); err != nil {
+					log.Printf("Failed to send message to session %s: %v", s.ID, err)
+				}
+			}(session)
+		}
+	}
+}
+
+func (sm *SessionManager) BroadcastToAll(message interface{}) {
+	sm.mu.RLock()
+	defer sm.mu.RUnlock()
+
+	for _, session := range sm.sessions {
+		// Only send to logged in users
+		if session.UserID != nil {
 			go func(s *Session) {
 				if err := s.SendMessage(message); err != nil {
 					log.Printf("Failed to send message to session %s: %v", s.ID, err)

@@ -8,15 +8,14 @@ import (
 	"throwback-chat/internal/models"
 )
 
-type WSMessageRequest struct {
+type WSMeRequest struct {
 	WSRequest
 	ChannelID int    `json:"channel_id"`
 	Message   string `json:"message"`
-	IsPassive bool   `json:"is_passive"`
 }
 
-func (h *WebSocketHandler) HandleMessage(sess *chat.Session, data []byte) error {
-	var req WSMessageRequest
+func (h *WebSocketHandler) HandleMe(sess *chat.Session, data []byte) error {
+	var req WSMeRequest
 	if err := DecodeWSData(sess, data, "", &req); err != nil {
 		return err
 	}
@@ -46,26 +45,26 @@ func (h *WebSocketHandler) HandleMessage(sess *chat.Session, data []byte) error 
 		return sess.RespondError(req.ReqID, "Not in channel")
 	}
 
-	// Create message in database
-	dbMessage, err := models.CreateMessage(h.db, &req.ChannelID, *sess.UserID, req.Message, "message", *sess.Nickname, req.IsPassive)
+	// Create passive message in database (is_passive = true for /me commands)
+	dbMessage, err := models.CreateMessage(h.db, &req.ChannelID, *sess.UserID, req.Message, "message", *sess.Nickname, true)
 	if err != nil {
-		log.Printf("Failed to create message: %v", err)
+		log.Printf("Failed to create me message: %v", err)
 		return sess.RespondError(req.ReqID, "Failed to send message")
 	}
 
-	// Broadcast message to all users in the channel
+	// Broadcast passive message to all users in the channel
 	wsMessage := WSMessage{
 		Type:      "message",
 		ChannelID: req.ChannelID,
 		Message:   req.Message,
-		IsPassive: req.IsPassive,
+		IsPassive: true, // Always true for /me commands
 		SentAt:    dbMessage.SentAt.Format(time.RFC3339),
 		UserID:    *sess.UserID,
 		Nickname:  *sess.Nickname,
 	}
 	h.sessions.BroadcastToChannel(req.ChannelID, wsMessage)
 
-	log.Printf("Message sent by %s to channel %d: %s", *sess.Nickname, req.ChannelID, req.Message)
+	log.Printf("Me message sent by %s to channel %d: %s", *sess.Nickname, req.ChannelID, req.Message)
 
 	return sess.RespondSuccess(req.ReqID, nil)
 }

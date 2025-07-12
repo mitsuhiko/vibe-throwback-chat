@@ -28,7 +28,6 @@ type WSEvent struct {
 	SentAt    string `json:"sent_at"`
 }
 
-
 func (h *WebSocketHandler) HandleJoin(sess *chat.Session, data []byte) error {
 	var req WSJoinRequest
 	if err := DecodeWSData(sess, data, "", &req); err != nil {
@@ -103,19 +102,22 @@ func (h *WebSocketHandler) HandleJoin(sess *chat.Session, data []byte) error {
 		Event:     "joined",
 		UserID:    *sess.UserID,
 		Nickname:  *sess.Nickname,
-		SentAt:    "",
+		SentAt:    time.Now().Format(time.RFC3339),
 	}
 	h.sessions.BroadcastToChannel(channel.ID, joinEvent)
 
 	// Send initial room content (last 100 messages and events)
-	recentMessages, err := models.GetRecentMessages(h.db, channel.ID, 100)
+	historyOptions := models.MessageHistoryOptions{
+		Limit: 100,
+	}
+	recentMessages, err := models.GetMessageHistory(h.db, channel.ID, historyOptions)
 	if err != nil {
 		log.Printf("Failed to fetch recent messages for channel %d: %v", channel.ID, err)
 	} else {
 		// Send messages in chronological order (reverse the DESC order from DB)
 		for i := len(recentMessages) - 1; i >= 0; i-- {
 			msg := recentMessages[i]
-			
+
 			if msg.Event != "" && msg.Event != "message" {
 				// Send as event
 				eventMsg := WSEvent{

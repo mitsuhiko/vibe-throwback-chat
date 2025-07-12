@@ -144,6 +144,24 @@ func (h *WebSocketHandler) handleMessage(sess *chat.Session, data []byte) error 
 		return h.HandleLeave(sess, data)
 	case "message":
 		return h.HandleMessage(sess, data)
+	case "me":
+		return h.HandleMe(sess, data)
+	case "nick":
+		return h.HandleNick(sess, data)
+	case "kick":
+		return h.HandleKick(sess, data)
+	case "topic":
+		return h.HandleTopic(sess, data)
+	case "list_channels":
+		return h.HandleListChannels(sess, data)
+	case "my_channels":
+		return h.HandleMyChannels(sess, data)
+	case "get_history":
+		return h.HandleHistory(sess, data)
+	case "announce":
+		return h.HandleAnnounce(sess, data)
+	case "channel_users":
+		return h.HandleChannelUsers(sess, data)
 	default:
 		return sess.RespondError(msg.ReqID, "Unknown command")
 	}

@@ -2,6 +2,7 @@ package web
 
 import (
 	"log"
+	"time"
 
 	"throwback-chat/internal/chat"
 	"throwback-chat/internal/models"
@@ -50,7 +51,7 @@ func (h *WebSocketHandler) HandleLogout(sess *chat.Session, data []byte) error {
 			Event:     "left",
 			UserID:    *sess.UserID,
 			Nickname:  nickname,
-			SentAt:    "",
+			SentAt:    time.Now().Format(time.RFC3339),
 		}
 		h.sessions.BroadcastToChannel(channelID, leaveEvent)
 

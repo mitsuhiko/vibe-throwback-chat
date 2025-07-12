@@ -2,6 +2,7 @@ package web
 
 import (
 	"log"
+	"time"
 
 	"throwback-chat/internal/chat"
 	"throwback-chat/internal/models"
@@ -81,9 +82,16 @@ func (h *WebSocketHandler) HandleLeave(sess *chat.Session, data []byte) error {
 		Event:     "left",
 		UserID:    *sess.UserID,
 		Nickname:  *sess.Nickname,
-		SentAt:    "",
+		SentAt:    time.Now().Format(time.RFC3339),
 	}
 	h.sessions.BroadcastToChannel(channel.ID, leaveEvent)
+
+	// Attempt to clean up the channel if it's now empty
+	if err := models.DeleteEmptyChannel(h.db, channel.ID); err != nil {
+		log.Printf("Failed to cleanup empty channel %d: %v", channel.ID, err)
+	} else {
+		log.Printf("Channel %s (ID: %d) was cleaned up as it's now empty", channel.Name, channel.ID)
+	}
 
 	log.Printf("User %s left channel %s (ID: %d)", *sess.Nickname, channel.Name, channel.ID)
 
