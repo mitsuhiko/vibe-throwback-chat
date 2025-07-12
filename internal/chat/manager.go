@@ -20,8 +20,9 @@ type Session struct {
 }
 
 type SessionManager struct {
-	sessions map[string]*Session
-	mu       sync.RWMutex
+	sessions         map[string]*Session
+	mu               sync.RWMutex
+	onSessionExpired func(sessionID string) // callback for handling expired sessions
 }
 
 func NewSessionManager() *SessionManager {
@@ -33,6 +34,13 @@ func NewSessionManager() *SessionManager {
 	go sm.heartbeatChecker()
 
 	return sm
+}
+
+// SetSessionExpiredCallback sets the callback function for handling expired sessions
+func (sm *SessionManager) SetSessionExpiredCallback(callback func(sessionID string)) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	sm.onSessionExpired = callback
 }
 
 func (sm *SessionManager) AddSession(sessionID string, conn *websocket.Conn) *Session {
@@ -190,7 +198,7 @@ func (sm *SessionManager) GetChannelUserCount(channelID int) int {
 }
 
 func (sm *SessionManager) heartbeatChecker() {
-	ticker := time.NewTicker(30 * time.Second)
+	ticker := time.NewTicker(25 * time.Second)
 	defer ticker.Stop()
 
 	for range ticker.C {
@@ -199,7 +207,7 @@ func (sm *SessionManager) heartbeatChecker() {
 }
 
 func (sm *SessionManager) cleanupExpiredSessions() {
-	cutoff := time.Now().Add(-5 * time.Minute) // 5 missed heartbeats (60s each)
+	cutoff := time.Now().Add(-60 * time.Second) // timeout after 60 seconds
 	var expiredSessions []string
 
 	// First pass: identify expired sessions
@@ -227,21 +235,13 @@ func (sm *SessionManager) cleanupExpiredSessions() {
 
 		// Check if user was logged in
 		if session.UserID != nil && session.Nickname != nil {
-			// For logged-in users: generate leave events but keep session for reconnection
-			userID := *session.UserID
-			nickname := *session.Nickname
-			channels := session.GetChannels()
-
-			log.Printf("Generating leave events for expired session of user %s (ID: %d)", nickname, userID)
-
-			// Send leave events to all channels the user was in
-			for range channels {
-				// This would need the WebSocket handler to create messages and broadcast
-				// For now, just disconnect and let them reconnect
+			// For logged-in users: call callback to generate leave events
+			if sm.onSessionExpired != nil {
+				sm.onSessionExpired(sessionID)
+			} else {
+				// Fallback: just disconnect but keep session alive
+				sm.DisconnectSession(sessionID)
 			}
-
-			// Disconnect but keep session alive
-			sm.DisconnectSession(sessionID)
 		} else {
 			// Not logged in, remove completely
 			sm.RemoveSession(sessionID)

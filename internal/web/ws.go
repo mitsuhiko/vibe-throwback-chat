@@ -77,10 +77,15 @@ type WebSocketHandler struct {
 }
 
 func NewWebSocketHandler(database *db.DB) *WebSocketHandler {
-	return &WebSocketHandler{
+	h := &WebSocketHandler{
 		db:       database,
 		sessions: chat.NewSessionManager(),
 	}
+
+	// Set up callback for expired sessions to generate leave events
+	h.sessions.SetSessionExpiredCallback(h.handleExpiredSession)
+
+	return h
 }
 
 func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
@@ -280,4 +285,50 @@ func (h *WebSocketHandler) generateJoinEventsForSessionRestore(session *chat.Ses
 		}
 		h.sessions.BroadcastToChannel(channelID, joinEvent)
 	}
+}
+
+// handleExpiredSession generates leave events when a session expires due to timeout
+func (h *WebSocketHandler) handleExpiredSession(sessionID string) {
+	session := h.sessions.GetSession(sessionID)
+	if session == nil {
+		return
+	}
+
+	// Check if user was logged in
+	if session.UserID == nil || session.Nickname == nil {
+		// Not logged in, just remove the session normally
+		h.sessions.RemoveSession(sessionID)
+		return
+	}
+
+	userID := *session.UserID
+	nickname := *session.Nickname
+	channels := session.GetChannels()
+
+	log.Printf("Generating leave events for expired session of user %s (ID: %d)", nickname, userID)
+
+	// Send leave events to all channels the user was in
+	for _, channelID := range channels {
+		// Create database record
+		_, err := models.CreateMessage(h.db, &channelID, userID, "timed out", "left", nickname, false)
+		if err != nil {
+			log.Printf("Failed to create leave message for channel %d: %v", channelID, err)
+			continue
+		}
+
+		// Broadcast leave event to other users in the channel
+		leaveEvent := map[string]interface{}{
+			"type":       "event",
+			"channel_id": channelID,
+			"event":      "left",
+			"user_id":    userID,
+			"nickname":   nickname,
+			"sent_at":    time.Now().UTC().Format(time.RFC3339),
+		}
+
+		h.sessions.BroadcastToChannel(channelID, leaveEvent)
+	}
+
+	// For logged-in users, disconnect but keep session alive for potential reconnection
+	h.sessions.DisconnectSession(sessionID)
 }

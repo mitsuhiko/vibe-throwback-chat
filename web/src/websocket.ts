@@ -18,7 +18,7 @@ export class WebSocketClient {
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
   private baseReconnectDelay = 1000;
-  private heartbeatInterval = 30000; // 30 seconds
+  private heartbeatInterval = 25000; // 25 seconds
   private url: string;
   private sessionId: string | null = null;
   private readonly SESSION_STORAGE_KEY = "tbchat_session_id";
