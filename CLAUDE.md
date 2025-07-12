@@ -8,12 +8,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Development Commands
 
-- `make dev` - Start development environment (runs both backend and frontend with live reload)
+- `make dev` - Start development environment if it's not yet running (runs both backend and frontend with live reload)
 - `make install` - Install dependencies for both Go and Node.js
 - `make build` - Build the Go server binary to `bin/server`
 - `make format` - Format code using Go fmt and Prettier
 - `make check` - Run static analysis (`go vet`) and TypeScript type checking
 - `make tail-log` - View development logs (last 100 lines, ANSI stripped)
+
+**Important:**
+
+- never start the server in any other way than with `make dev`.
+- the server and the client are logging into dev.log which you can look at with `make tail`
+- if you are unsure, check the log
 
 ## Architecture
 

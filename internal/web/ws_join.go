@@ -2,6 +2,7 @@ package web
 
 import (
 	"log"
+	"time"
 
 	"throwback-chat/internal/chat"
 	"throwback-chat/internal/models"
@@ -26,6 +27,7 @@ type WSEvent struct {
 	Nickname  string `json:"nickname"`
 	SentAt    string `json:"sent_at"`
 }
+
 
 func (h *WebSocketHandler) HandleJoin(sess *chat.Session, data []byte) error {
 	var req WSJoinRequest
@@ -104,6 +106,42 @@ func (h *WebSocketHandler) HandleJoin(sess *chat.Session, data []byte) error {
 		SentAt:    "",
 	}
 	h.sessions.BroadcastToChannel(channel.ID, joinEvent)
+
+	// Send initial room content (last 100 messages and events)
+	recentMessages, err := models.GetRecentMessages(h.db, channel.ID, 100)
+	if err != nil {
+		log.Printf("Failed to fetch recent messages for channel %d: %v", channel.ID, err)
+	} else {
+		// Send messages in chronological order (reverse the DESC order from DB)
+		for i := len(recentMessages) - 1; i >= 0; i-- {
+			msg := recentMessages[i]
+			
+			if msg.Event != "" && msg.Event != "message" {
+				// Send as event
+				eventMsg := WSEvent{
+					Type:      "event",
+					ChannelID: channel.ID,
+					Event:     msg.Event,
+					UserID:    msg.UserID,
+					Nickname:  msg.Nickname,
+					SentAt:    msg.SentAt.Format(time.RFC3339),
+				}
+				sess.SendMessage(eventMsg)
+			} else {
+				// Send as regular message
+				chatMsg := WSMessage{
+					Type:      "message",
+					ChannelID: channel.ID,
+					Message:   msg.Message,
+					IsPassive: msg.IsPassive,
+					SentAt:    msg.SentAt.Format(time.RFC3339),
+					UserID:    msg.UserID,
+					Nickname:  msg.Nickname,
+				}
+				sess.SendMessage(chatMsg)
+			}
+		}
+	}
 
 	log.Printf("User %s joined channel %s (ID: %d)", *sess.Nickname, channel.Name, channel.ID)
 
