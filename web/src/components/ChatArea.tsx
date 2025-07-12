@@ -28,7 +28,7 @@ export function ChatArea() {
   // Check if user is at bottom to determine auto-scroll behavior
   const handleScroll = () => {
     if (!messagesContainer!) return;
-    
+
     const { scrollTop, scrollHeight, clientHeight } = messagesContainer!;
     const atBottom = scrollHeight - scrollTop - clientHeight < 10;
     setShouldAutoScroll(atBottom);
@@ -42,31 +42,34 @@ export function ChatArea() {
   const loadMoreHistory = async () => {
     const currentChannel = getters.getCurrentChannelData();
     const messages = getters.getCurrentChannelMessages();
-    
+
     if (!currentChannel || messages.length === 0) return;
 
     setIsLoadingHistory(true);
-    
+
     try {
       // Get the oldest message ID for pagination
       const oldestMessage = messages[0];
-      const beforeId = oldestMessage && oldestMessage.id ? parseInt(oldestMessage.id.replace(/^\w+_/, '').split('_')[0]) : undefined;
-      
+      const beforeId =
+        oldestMessage && oldestMessage.id
+          ? parseInt(oldestMessage.id.replace(/^\w+_/, "").split("_")[0])
+          : undefined;
+
       const { messages: newMessages, hasMore } = await chatAPI.getHistory(
         currentChannel.id,
         beforeId,
-        50
+        50,
       );
-      
+
       if (newMessages.length > 0) {
         // TODO: Implement proper message history prepending in the store
         // For now, just log that we received the messages
         console.log(`Loaded ${newMessages.length} historical messages`);
       }
-      
+
       setHasMoreHistory(hasMore);
     } catch (error) {
-      console.error('Failed to load message history:', error);
+      console.error("Failed to load message history:", error);
     } finally {
       setIsLoadingHistory(false);
     }
@@ -82,38 +85,40 @@ export function ChatArea() {
   const formatTime = (timestamp: string) => {
     const date = new Date(timestamp);
     const now = new Date();
-    const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
-    
+    const diffDays = Math.floor(
+      (now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24),
+    );
+
     if (diffDays === 0) {
       // Today - show time only
-      return date.toLocaleTimeString('en-US', { 
-        hour12: false, 
-        hour: '2-digit', 
-        minute: '2-digit' 
+      return date.toLocaleTimeString("en-US", {
+        hour12: false,
+        hour: "2-digit",
+        minute: "2-digit",
       });
     } else if (diffDays === 1) {
       // Yesterday
-      return `Yesterday ${date.toLocaleTimeString('en-US', { 
-        hour12: false, 
-        hour: '2-digit', 
-        minute: '2-digit' 
+      return `Yesterday ${date.toLocaleTimeString("en-US", {
+        hour12: false,
+        hour: "2-digit",
+        minute: "2-digit",
       })}`;
     } else if (diffDays < 7) {
       // This week - show day and time
-      return date.toLocaleDateString('en-US', { 
-        weekday: 'short',
-        hour: '2-digit', 
-        minute: '2-digit',
-        hour12: false
+      return date.toLocaleDateString("en-US", {
+        weekday: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
       });
     } else {
       // Older - show full date
-      return date.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false
+      return date.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
       });
     }
   };
@@ -124,11 +129,11 @@ export function ChatArea() {
       const html = marked.parse(message, { async: false }) as string;
       // Basic sanitization - remove script tags and on* attributes
       return html
-        .replace(/<script[^>]*>.*?<\/script>/gi, '')
-        .replace(/on\w+\s*=\s*[\"'][^\"']*[\"']/gi, '')
-        .replace(/javascript:/gi, '');
+        .replace(/<script[^>]*>.*?<\/script>/gi, "")
+        .replace(/on\w+\s*=\s*[\"'][^\"']*[\"']/gi, "")
+        .replace(/javascript:/gi, "");
     } catch (error) {
-      console.error('Failed to parse markdown:', error);
+      console.error("Failed to parse markdown:", error);
       // Fallback to simple text
       return message;
     }
@@ -170,7 +175,7 @@ export function ChatArea() {
   };
 
   return (
-    <div class="flex-1 flex flex-col bg-gray-900">
+    <div class="h-full flex flex-col bg-gray-900">
       {/* Messages Container */}
       <div
         ref={messagesContainer!}
@@ -194,10 +199,11 @@ export function ChatArea() {
               <div class="text-center text-gray-500">
                 <div class="text-6xl mb-4">#</div>
                 <h3 class="text-lg font-semibold mb-2">
-                  Welcome to #{getters.getCurrentChannelData()?.name}
+                  Welcome to {getters.getCurrentChannelData()?.name}
                 </h3>
                 <p class="text-sm">
-                  This is the beginning of the #{getters.getCurrentChannelData()?.name} channel.
+                  This is the beginning of the{" "}
+                  {getters.getCurrentChannelData()?.name} channel.
                 </p>
               </div>
             </div>
@@ -205,10 +211,12 @@ export function ChatArea() {
         >
           <For each={getters.getCurrentChannelMessages()}>
             {(message) => (
-              <div class={`
+              <div
+                class={`
                 group flex items-start space-x-3 hover:bg-gray-800 hover:bg-opacity-30 px-2 py-1.5 rounded transition-colors
                 ${message.event !== "message" ? "opacity-80" : ""}
-              `}>
+              `}
+              >
                 {/* Avatar/Icon */}
                 <div class="flex-shrink-0 mt-0.5">
                   <div class={getAvatarStyles(message)}>
@@ -219,19 +227,28 @@ export function ChatArea() {
                 {/* Message Content */}
                 <div class="flex-1 min-w-0">
                   <div class="flex items-baseline space-x-2 mb-1">
-                    <span class={`
+                    <span
+                      class={`
                       font-medium text-sm
-                      ${message.event !== "message" ? "text-gray-400" : 
-                        message.is_passive ? "text-purple-300" : "text-gray-200"}
-                    `}>
+                      ${
+                        message.event !== "message"
+                          ? "text-gray-400"
+                          : message.is_passive
+                            ? "text-purple-300"
+                            : "text-gray-200"
+                      }
+                    `}
+                    >
                       {message.nickname}
                     </span>
                     <span class="text-xs text-gray-500 font-mono">
                       {formatTime(message.sent_at)}
                     </span>
                   </div>
-                  
-                  <div class={`text-sm break-words ${getMessageTypeStyles(message)}`}>
+
+                  <div
+                    class={`text-sm break-words ${getMessageTypeStyles(message)}`}
+                  >
                     <Show
                       when={message.event === "message"}
                       fallback={
@@ -241,8 +258,8 @@ export function ChatArea() {
                         </div>
                       }
                     >
-                      <div 
-                        innerHTML={formatMessage(message.message)} 
+                      <div
+                        innerHTML={formatMessage(message.message)}
                         class="prose prose-sm prose-invert max-w-none"
                       />
                     </Show>
@@ -251,7 +268,7 @@ export function ChatArea() {
 
                 {/* Message Actions (appear on hover) */}
                 <div class="opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button 
+                  <button
                     class="text-gray-500 hover:text-gray-300 text-xs p-1 rounded hover:bg-gray-700"
                     title="Message options"
                   >
@@ -261,7 +278,7 @@ export function ChatArea() {
               </div>
             )}
           </For>
-          
+
           {/* Scroll to bottom indicator */}
           <Show when={!shouldAutoScroll()}>
             <div class="fixed bottom-20 right-6 z-10">
@@ -269,14 +286,25 @@ export function ChatArea() {
                 onClick={() => {
                   setShouldAutoScroll(true);
                   if (messagesContainer!) {
-                    messagesContainer!.scrollTop = messagesContainer!.scrollHeight;
+                    messagesContainer!.scrollTop =
+                      messagesContainer!.scrollHeight;
                   }
                 }}
                 class="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-full shadow-lg transition-colors"
                 title="Scroll to bottom"
               >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                <svg
+                  class="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M19 14l-7 7m0 0l-7-7m7 7V3"
+                  />
                 </svg>
               </button>
             </div>

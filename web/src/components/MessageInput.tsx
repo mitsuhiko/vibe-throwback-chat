@@ -1,12 +1,12 @@
 import { createSignal, Show, For, createEffect, onCleanup } from "solid-js";
 import { currentChannel, chatAPI, getters, appState } from "../store";
-import { 
-  parseCommand, 
-  getCommandSuggestions, 
-  validateCommandArgs, 
+import {
+  parseCommand,
+  getCommandSuggestions,
+  validateCommandArgs,
   getCommandHelp,
   isPartialCommand,
-  type CommandSuggestion 
+  type CommandSuggestion,
 } from "../utils/commands";
 
 export function MessageInput() {
@@ -31,13 +31,22 @@ export function MessageInput() {
     setCommandFeedback(null);
   };
 
-  const showFeedback = (type: "error" | "success" | "info", message: string, duration = 5000) => {
+  const showFeedback = (
+    type: "error" | "success" | "info",
+    message: string,
+    duration = 5000,
+  ) => {
     clearFeedback();
     setCommandFeedback({ type, message });
     feedbackTimeoutId = setTimeout(clearFeedback, duration);
   };
 
-  const executeCommand = async (command: string, args: string[], rawArgs: string, channelId: string): Promise<void> => {
+  const executeCommand = async (
+    command: string,
+    args: string[],
+    rawArgs: string,
+    channelId: string,
+  ): Promise<void> => {
     try {
       switch (command) {
         case "join":
@@ -65,12 +74,19 @@ export function MessageInput() {
           const reason = args.slice(1).join(" ");
           // Find user by nickname in current channel
           const channelUsers = getters.getCurrentChannelUsers();
-          const userToKick = channelUsers.find(u => u.nickname === username);
+          const userToKick = channelUsers.find((u) => u.nickname === username);
           if (!userToKick) {
             throw new Error(`User "${username}" not found in this channel`);
           }
-          await chatAPI.kickUser(channelId.toString(), userToKick.id.toString(), reason || undefined);
-          showFeedback("success", `Kicked ${username}${reason ? ` (${reason})` : ""}`);
+          await chatAPI.kickUser(
+            channelId.toString(),
+            userToKick.id.toString(),
+            reason || undefined,
+          );
+          showFeedback(
+            "success",
+            `Kicked ${username}${reason ? ` (${reason})` : ""}`,
+          );
           break;
 
         case "topic":
@@ -102,7 +118,7 @@ export function MessageInput() {
     e.preventDefault();
     const messageText = message().trim();
     const channelId = currentChannel();
-    
+
     if (!messageText || isSending()) return;
 
     // Hide suggestions on submit
@@ -113,7 +129,7 @@ export function MessageInput() {
       if (messageText.startsWith("/")) {
         // Parse and execute command
         const parsed = parseCommand(messageText);
-        
+
         if (!parsed) {
           throw new Error("Invalid command");
         }
@@ -130,11 +146,21 @@ export function MessageInput() {
 
         // Special handling for commands that don't require a channel
         if (parsed.command === "join" || parsed.command === "help") {
-          await executeCommand(parsed.command, parsed.args, parsed.rawArgs, channelId || "");
+          await executeCommand(
+            parsed.command,
+            parsed.args,
+            parsed.rawArgs,
+            channelId || "",
+          );
         } else if (!channelId) {
           throw new Error("This command requires you to be in a channel");
         } else {
-          await executeCommand(parsed.command, parsed.args, parsed.rawArgs, channelId);
+          await executeCommand(
+            parsed.command,
+            parsed.args,
+            parsed.rawArgs,
+            channelId,
+          );
         }
       } else {
         // Regular message
@@ -156,14 +182,14 @@ export function MessageInput() {
     if (showSuggestions()) {
       if (e.key === "ArrowDown") {
         e.preventDefault();
-        setSelectedSuggestion(prev => 
-          prev < suggestions().length - 1 ? prev + 1 : 0
+        setSelectedSuggestion((prev) =>
+          prev < suggestions().length - 1 ? prev + 1 : 0,
         );
         return;
       } else if (e.key === "ArrowUp") {
         e.preventDefault();
-        setSelectedSuggestion(prev => 
-          prev > 0 ? prev - 1 : suggestions().length - 1
+        setSelectedSuggestion((prev) =>
+          prev > 0 ? prev - 1 : suggestions().length - 1,
         );
         return;
       } else if (e.key === "Tab" || e.key === "Enter") {
@@ -194,7 +220,8 @@ export function MessageInput() {
       // Place cursor at end
       setTimeout(() => {
         if (textareaRef) {
-          textareaRef.selectionStart = textareaRef.selectionEnd = textareaRef.value.length;
+          textareaRef.selectionStart = textareaRef.selectionEnd =
+            textareaRef.value.length;
         }
       }, 0);
     }
@@ -203,11 +230,11 @@ export function MessageInput() {
   const handleInput = (e: InputEvent) => {
     const target = e.currentTarget as HTMLTextAreaElement;
     setMessage(target.value);
-    
+
     // Auto-resize textarea
     target.style.height = "auto";
     target.style.height = Math.min(target.scrollHeight, 120) + "px";
-    
+
     // Update command suggestions
     if (isPartialCommand(target.value)) {
       const newSuggestions = getCommandSuggestions(target.value);
@@ -217,12 +244,12 @@ export function MessageInput() {
     } else {
       setShowSuggestions(false);
     }
-    
+
     // Clear any previous feedback when user starts typing
     if (commandFeedback()) {
       clearFeedback();
     }
-    
+
     // Typing indicator (simple version)
     if (!isTyping() && target.value.length > 0) {
       setIsTyping(true);
@@ -237,9 +264,9 @@ export function MessageInput() {
 
   const getPlaceholderText = () => {
     const channelName = getCurrentChannelName();
-    return channelName !== "..." 
+    return channelName !== "..."
       ? `Message ${channelName} or type / for commands`
-      : "Join a channel first, or type /join #channel";
+      : "Join a channel first, or type /join channel";
   };
 
   // Cleanup timeout on unmount
@@ -254,13 +281,15 @@ export function MessageInput() {
       <div class="p-4">
         {/* Command Feedback */}
         <Show when={commandFeedback()}>
-          <div class={`mb-3 p-2 rounded-lg text-sm ${
-            commandFeedback()!.type === "error" 
-              ? "bg-red-900/50 text-red-200 border border-red-800" 
-              : commandFeedback()!.type === "success"
-              ? "bg-green-900/50 text-green-200 border border-green-800"
-              : "bg-blue-900/50 text-blue-200 border border-blue-800"
-          }`}>
+          <div
+            class={`mb-3 p-2 rounded-lg text-sm ${
+              commandFeedback()!.type === "error"
+                ? "bg-red-900/50 text-red-200 border border-red-800"
+                : commandFeedback()!.type === "success"
+                  ? "bg-green-900/50 text-green-200 border border-green-800"
+                  : "bg-blue-900/50 text-blue-200 border border-blue-800"
+            }`}
+          >
             <div class="flex items-start justify-between">
               <div class="flex-1 whitespace-pre-wrap">
                 {commandFeedback()!.message}
@@ -290,17 +319,23 @@ export function MessageInput() {
                 class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-gray-100 placeholder-gray-400 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-800 disabled:cursor-not-allowed transition-colors"
                 style="min-height: 40px; max-height: 120px;"
               />
-              
+
               {/* Character count */}
               <Show when={message().length > 500}>
                 <div class="absolute bottom-1 right-2 text-xs text-gray-500">
-                  <span class={message().length > 1000 ? "text-red-400" : "text-yellow-400"}>
+                  <span
+                    class={
+                      message().length > 1000
+                        ? "text-red-400"
+                        : "text-yellow-400"
+                    }
+                  >
                     {message().length}/2000
                   </span>
                 </div>
               </Show>
             </div>
-            
+
             {/* Command Suggestions Dropdown */}
             <Show when={showSuggestions() && suggestions().length > 0}>
               <div class="absolute bottom-full left-0 right-0 mb-1 bg-gray-800 border border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto z-50">
@@ -327,24 +362,23 @@ export function MessageInput() {
                 </For>
               </div>
             </Show>
-            
+
             {/* Command validation feedback */}
             <Show when={message().startsWith("/") && message().length > 1}>
               {(() => {
                 const parsed = parseCommand(message());
                 if (parsed && !parsed.isValid) {
                   return (
-                    <div class="mt-1 text-xs text-red-400">
-                      {parsed.error}
-                    </div>
+                    <div class="mt-1 text-xs text-red-400">{parsed.error}</div>
                   );
                 } else if (parsed && parsed.isValid) {
-                  const argError = validateCommandArgs(parsed.command, parsed.args);
+                  const argError = validateCommandArgs(
+                    parsed.command,
+                    parsed.args,
+                  );
                   if (argError) {
                     return (
-                      <div class="mt-1 text-xs text-red-400">
-                        {argError}
-                      </div>
+                      <div class="mt-1 text-xs text-red-400">{argError}</div>
                     );
                   } else {
                     return (
@@ -371,8 +405,18 @@ export function MessageInput() {
                 <div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
               }
             >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+              <svg
+                class="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+                />
               </svg>
             </Show>
             <span class="hidden sm:inline">
@@ -384,17 +428,13 @@ export function MessageInput() {
         {/* Help Text */}
         <div class="mt-2 flex items-center justify-between text-xs text-gray-500">
           <div class="flex items-center space-x-4">
-            <span>
-              Press Enter to send, Shift+Enter for new line
-            </span>
+            <span>Press Enter to send, Shift+Enter for new line</span>
             <Show when={showSuggestions()}>
-              <span>
-                ↑↓ navigate, Tab/Enter select, Esc cancel
-              </span>
+              <span>↑↓ navigate, Tab/Enter select, Esc cancel</span>
             </Show>
           </div>
           <div class="flex items-center space-x-2">
-            <button 
+            <button
               type="button"
               onClick={() => setMessage("/help ")}
               class="hover:text-gray-300 p-1 transition-colors"

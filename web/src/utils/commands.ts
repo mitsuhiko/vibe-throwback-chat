@@ -30,7 +30,7 @@ export const IRC_COMMANDS: Record<string, IRCCommand> = {
   join: {
     name: "join",
     description: "Join a channel",
-    usage: "/join #channel",
+    usage: "/join channel",
     minArgs: 1,
     maxArgs: 1,
     requiresChannel: false,
@@ -109,7 +109,7 @@ export const IRC_COMMANDS: Record<string, IRCCommand> = {
  */
 export function parseCommand(message: string): ParsedCommand | null {
   const trimmed = message.trim();
-  
+
   // Not a command if it doesn't start with /
   if (!trimmed.startsWith("/")) {
     return null;
@@ -117,7 +117,7 @@ export function parseCommand(message: string): ParsedCommand | null {
 
   // Remove leading slash
   const withoutSlash = trimmed.slice(1);
-  
+
   // Split into command and arguments
   const parts = withoutSlash.split(/\s+/);
   const command = parts[0].toLowerCase();
@@ -182,16 +182,18 @@ export function parseCommand(message: string): ParsedCommand | null {
 /**
  * Get command suggestions based on partial input
  */
-export function getCommandSuggestions(partialCommand: string): CommandSuggestion[] {
+export function getCommandSuggestions(
+  partialCommand: string,
+): CommandSuggestion[] {
   if (!partialCommand.startsWith("/")) {
     return [];
   }
 
   const commandPart = partialCommand.slice(1).toLowerCase();
-  
+
   // If no command typed yet, show all commands
   if (commandPart === "") {
-    return Object.values(IRC_COMMANDS).map(cmd => ({
+    return Object.values(IRC_COMMANDS).map((cmd) => ({
       command: `/${cmd.name}`,
       description: cmd.description,
       usage: cmd.usage,
@@ -200,8 +202,8 @@ export function getCommandSuggestions(partialCommand: string): CommandSuggestion
 
   // Filter commands that start with the typed text
   return Object.values(IRC_COMMANDS)
-    .filter(cmd => cmd.name.startsWith(commandPart))
-    .map(cmd => ({
+    .filter((cmd) => cmd.name.startsWith(commandPart))
+    .map((cmd) => ({
       command: `/${cmd.name}`,
       description: cmd.description,
       usage: cmd.usage,
@@ -211,17 +213,18 @@ export function getCommandSuggestions(partialCommand: string): CommandSuggestion
 /**
  * Validate specific command arguments
  */
-export function validateCommandArgs(command: string, args: string[]): string | null {
+export function validateCommandArgs(
+  command: string,
+  args: string[],
+): string | null {
   switch (command) {
     case "join":
       const channelName = args[0];
-      if (!channelName.startsWith("#")) {
-        return "Channel name must start with #";
+      if (channelName.length < 1) {
+        return "Channel name cannot be empty";
       }
-      if (channelName.length < 2) {
-        return "Channel name is too short";
-      }
-      if (!/^#[a-zA-Z0-9_-]+$/.test(channelName)) {
+      // Allow channel names with or without # prefix, multiple # allowed at start
+      if (!/^#{0,}[a-zA-Z0-9_-]+$/.test(channelName)) {
         return "Channel name contains invalid characters. Only letters, numbers, underscores, and hyphens are allowed.";
       }
       break;
@@ -277,7 +280,7 @@ export function getCommandHelp(commandName?: string): string {
 
   // Return help for all commands
   const commandList = Object.values(IRC_COMMANDS)
-    .map(cmd => `  ${cmd.usage.padEnd(30)} - ${cmd.description}`)
+    .map((cmd) => `  ${cmd.usage.padEnd(30)} - ${cmd.description}`)
     .join("\n");
 
   return `Available commands:\n${commandList}\n\nType /help <command> for detailed information about a specific command.`;

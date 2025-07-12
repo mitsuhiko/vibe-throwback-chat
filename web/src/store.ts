@@ -34,7 +34,8 @@ const [appState, setAppState] = createStore<AppState>({
 });
 
 // Create reactive signals for commonly accessed state
-const [connectionState, setConnectionState] = createSignal<ConnectionState>("disconnected");
+const [connectionState, setConnectionState] =
+  createSignal<ConnectionState>("disconnected");
 const [currentUser, setCurrentUser] = createSignal<User | null>(null);
 const [currentChannel, setCurrentChannel] = createSignal<string | null>(null);
 
@@ -72,7 +73,7 @@ function handleWebSocketMessage(message: WebSocketMessage) {
 
 function handleChatMessage(message: ChatMessage) {
   const channelId = message.channel_id;
-  
+
   // Add message to channel's message list
   setAppState("messages", channelId, (messages = []) => [
     ...messages,
@@ -85,18 +86,18 @@ function handleChatMessage(message: ChatMessage) {
       is_passive: message.is_passive,
       event: "message",
       sent_at: message.sent_at,
-    }
+    },
   ]);
 
   // Limit message history to 1000 messages per channel
-  setAppState("messages", channelId, (messages = []) => 
-    messages.length > 1000 ? messages.slice(-1000) : messages
+  setAppState("messages", channelId, (messages = []) =>
+    messages.length > 1000 ? messages.slice(-1000) : messages,
   );
 }
 
 function handleChatEvent(event: ChatEvent) {
   const channelId = event.channel_id;
-  
+
   // Create a message representation of the event
   const eventMessage: Message = {
     id: `event_${Date.now()}_${Math.random()}`,
@@ -111,7 +112,10 @@ function handleChatEvent(event: ChatEvent) {
 
   // Add event as message
   if (channelId) {
-    setAppState("messages", channelId, (messages = []) => [...messages, eventMessage]);
+    setAppState("messages", channelId, (messages = []) => [
+      ...messages,
+      eventMessage,
+    ]);
   }
 
   // Handle specific event types - for real-time user updates, refresh the channel users list
@@ -123,21 +127,23 @@ function handleChatEvent(event: ChatEvent) {
         refreshChannelUsers(channelId);
       }
       break;
-      
+
     case "nick_change":
       if (event.user_id && event.new_nickname) {
         // Update nickname in current user if it's us
         if (currentUser()?.id === event.user_id) {
-          setCurrentUser(prev => prev ? { ...prev, nickname: event.new_nickname! } : null);
+          setCurrentUser((prev) =>
+            prev ? { ...prev, nickname: event.new_nickname! } : null,
+          );
         }
-        
+
         // Refresh channel users to get updated nicknames
         if (channelId) {
           refreshChannelUsers(channelId);
         }
       }
       break;
-      
+
     case "topic_change":
       if (channelId && event.topic !== undefined) {
         setAppState("channels", channelId, "topic", event.topic);
@@ -169,7 +175,7 @@ function formatEventMessage(event: ChatEvent): string {
 wsClient.onMessage = handleWebSocketMessage;
 wsClient.onConnectionChange = (state: ConnectionState) => {
   setConnectionState(state);
-  
+
   // Clear state on disconnect
   if (state === "disconnected" || state === "error") {
     setCurrentUser(null);
@@ -211,14 +217,14 @@ export const chatAPI = {
         nickname: response.data.nickname || nickname,
         is_serv: false,
       });
-      
+
       // Automatically fetch user's channels after login
       try {
         const myChannelsResponse = await wsClient.send<any>({
           cmd: "my_channels",
           req_id: "",
         });
-        
+
         if (myChannelsResponse.okay) {
           const channels = myChannelsResponse.data.channels || [];
           channels.forEach((channel: any) => {
@@ -239,7 +245,7 @@ export const chatAPI = {
       dying_message: dyingMessage,
       req_id: "",
     });
-    
+
     wsClient.disconnect();
   },
 
@@ -256,7 +262,7 @@ export const chatAPI = {
         name: response.data.channel_name,
         topic: "",
       };
-      
+
       setAppState("channels", response.data.channel_id.toString(), channel);
       setCurrentChannel(response.data.channel_id.toString());
 
@@ -264,7 +270,7 @@ export const chatAPI = {
       try {
         const [{ messages }, users] = await Promise.all([
           this.getHistory(response.data.channel_id.toString(), undefined, 50),
-          this.getChannelUsers(response.data.channel_id.toString())
+          this.getChannelUsers(response.data.channel_id.toString()),
         ]);
         setAppState("messages", response.data.channel_id.toString(), messages);
         setAppState("channelUsers", response.data.channel_id.toString(), users);
@@ -289,12 +295,12 @@ export const chatAPI = {
         const { [channelId]: removed, ...rest } = channels;
         return rest;
       });
-      
+
       setAppState("messages", (messages) => {
         const { [channelId]: removed, ...rest } = messages;
         return rest;
       });
-      
+
       setAppState("channelUsers", (channelUsers) => {
         const { [channelId]: removed, ...rest } = channelUsers;
         return rest;
@@ -308,7 +314,11 @@ export const chatAPI = {
     }
   },
 
-  async sendMessage(channelId: string, message: string, isPassive = false): Promise<void> {
+  async sendMessage(
+    channelId: string,
+    message: string,
+    isPassive = false,
+  ): Promise<void> {
     const response = await wsClient.send({
       cmd: "message",
       channel_id: channelId,
@@ -334,7 +344,11 @@ export const chatAPI = {
     }
   },
 
-  async kickUser(channelId: string, userId: string, reason?: string): Promise<void> {
+  async kickUser(
+    channelId: string,
+    userId: string,
+    reason?: string,
+  ): Promise<void> {
     const response = await wsClient.send({
       cmd: "kick",
       channel_id: channelId,
@@ -408,12 +422,12 @@ export const chatAPI = {
 
     if (response.okay) {
       const channels = response.data?.channels || [];
-      
+
       // Update store with channels
       channels.forEach((channel: Channel) => {
         setAppState("channels", channel.id, channel);
       });
-      
+
       return channels;
     } else {
       throw new Error(response.error || "Failed to get my channels");
@@ -434,7 +448,11 @@ export const chatAPI = {
     }
   },
 
-  async getHistory(channelId: string, before?: number, limit = 50): Promise<{ messages: Message[], hasMore: boolean }> {
+  async getHistory(
+    channelId: string,
+    before?: number,
+    limit = 50,
+  ): Promise<{ messages: Message[]; hasMore: boolean }> {
     const response = await wsClient.send<any>({
       cmd: "get_history",
       channel_id: parseInt(channelId),

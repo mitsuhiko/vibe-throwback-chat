@@ -38,7 +38,12 @@ code {
   color: var(--tw-prose-body);
 }
 
-.prose-invert h1, .prose-invert h2, .prose-invert h3, .prose-invert h4, .prose-invert h5, .prose-invert h6 {
+.prose-invert h1,
+.prose-invert h2,
+.prose-invert h3,
+.prose-invert h4,
+.prose-invert h5,
+.prose-invert h6 {
   color: var(--tw-prose-headings);
 }
 
@@ -89,7 +94,8 @@ code {
   color: #93c5fd;
 }
 
-.prose-invert ul, .prose-invert ol {
+.prose-invert ul,
+.prose-invert ol {
   padding-left: 1.25rem;
 }
 

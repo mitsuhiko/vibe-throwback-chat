@@ -170,7 +170,13 @@ export interface ChatMessage {
 export interface ChatEvent {
   type: "event";
   channel_id?: string;
-  event: "joined" | "left" | "announcement" | "nick_change" | "kicked" | "topic_change";
+  event:
+    | "joined"
+    | "left"
+    | "announcement"
+    | "nick_change"
+    | "kicked"
+    | "topic_change";
   user_id?: string;
   nickname?: string;
   sent_at: string;
@@ -223,7 +229,12 @@ export interface Op {
 }
 
 // WebSocket connection states
-export type ConnectionState = "disconnected" | "connecting" | "connected" | "reconnecting" | "error";
+export type ConnectionState =
+  | "disconnected"
+  | "connecting"
+  | "connected"
+  | "reconnecting"
+  | "error";
 
 // UI state types
 export interface AppState {

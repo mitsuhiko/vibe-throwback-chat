@@ -14,6 +14,7 @@ type Channel struct {
 }
 
 // NormalizeChannelName ensures channel names start with '#' and are lowercase
+// Multiple leading '#' are allowed
 func NormalizeChannelName(name string) string {
 	// Remove leading/trailing spaces
 	name = strings.TrimSpace(name)
@@ -47,11 +48,13 @@ func ValidateChannelName(name string) error {
 		return errors.New("channel name cannot exceed 49 characters")
 	}
 
-	// Check for valid characters (alphanumeric, dash, underscore)
-	for i, r := range normalized {
-		if i == 0 && r == '#' {
-			continue // Skip the '#' prefix
+	// Check for valid characters (alphanumeric, dash, underscore, and # at start)
+	foundNonHash := false
+	for _, r := range normalized {
+		if r == '#' && !foundNonHash {
+			continue // Allow multiple # at the start
 		}
+		foundNonHash = true
 		if !((r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' || r == '_') {
 			return errors.New("channel name can only contain alphanumeric characters, dashes, and underscores")
 		}

@@ -26,7 +26,7 @@ export function Login(props: LoginProps) {
 
   const handleSubmit = async (e: Event) => {
     e.preventDefault();
-    
+
     const nick = nickname().trim();
     if (!nick) {
       setError("Please enter a nickname");
@@ -109,7 +109,10 @@ export function Login(props: LoginProps) {
           {/* Login Form */}
           <form onSubmit={handleSubmit} class="space-y-4">
             <div>
-              <label for="nickname" class="block text-sm font-medium text-gray-700 mb-2">
+              <label
+                for="nickname"
+                class="block text-sm font-medium text-gray-700 mb-2"
+              >
                 Choose your nickname
               </label>
               <input
@@ -137,8 +140,8 @@ export function Login(props: LoginProps) {
             <button
               type="submit"
               disabled={
-                isLoading() || 
-                !nickname().trim() || 
+                isLoading() ||
+                !nickname().trim() ||
                 connectionState() !== "connected"
               }
               class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
@@ -159,7 +162,7 @@ export function Login(props: LoginProps) {
             <p>Welcome to ThrowBackChat!</p>
             <p>Enter a nickname to join the conversation.</p>
             <p>
-              {connectionState() !== "connected" && 
+              {connectionState() !== "connected" &&
                 "Waiting for server connection..."}
             </p>
           </div>

@@ -11,7 +11,10 @@ export class WebSocketClient {
   private reconnectTimer: number | null = null;
   private heartbeatTimer: number | null = null;
   private requestCounter = 0;
-  private pendingRequests = new Map<string, (response: WebSocketResponse) => void>();
+  private pendingRequests = new Map<
+    string,
+    (response: WebSocketResponse) => void
+  >();
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
   private baseReconnectDelay = 1000;
@@ -28,7 +31,7 @@ export class WebSocketClient {
 
   constructor(url: string = "/ws") {
     this.url = url;
-    
+
     // React to connection state changes
     createEffect(() => {
       this.onConnectionChange(this.connectionStateSignal[0]());
@@ -55,12 +58,14 @@ export class WebSocketClient {
       // Construct WebSocket URL
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
       const wsUrl = `${protocol}//${window.location.host}${this.url}`;
-      
+
       this.ws = new WebSocket(wsUrl);
       this.setupEventHandlers();
     } catch (error) {
       console.error("Failed to create WebSocket connection:", error);
-      this.lastErrorSignal[1](error instanceof Error ? error.message : "Failed to connect");
+      this.lastErrorSignal[1](
+        error instanceof Error ? error.message : "Failed to connect",
+      );
       this.connectionStateSignal[1]("error");
       this.scheduleReconnect();
     }
@@ -69,16 +74,18 @@ export class WebSocketClient {
   public disconnect(): void {
     this.clearTimers();
     this.reconnectAttempts = 0;
-    
+
     if (this.ws) {
       this.ws.close(1000, "User initiated disconnect");
       this.ws = null;
     }
-    
+
     this.connectionStateSignal[1]("disconnected");
   }
 
-  public send<T extends WebSocketResponse>(request: WebSocketRequest): Promise<T> {
+  public send<T extends WebSocketResponse>(
+    request: WebSocketRequest,
+  ): Promise<T> {
     return new Promise((resolve, reject) => {
       if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
         reject(new Error("WebSocket is not connected"));
@@ -90,7 +97,10 @@ export class WebSocketClient {
       request.req_id = reqId;
 
       // Store pending request
-      this.pendingRequests.set(reqId, resolve as (response: WebSocketResponse) => void);
+      this.pendingRequests.set(
+        reqId,
+        resolve as (response: WebSocketResponse) => void,
+      );
 
       // Set timeout for request
       setTimeout(() => {
@@ -123,7 +133,7 @@ export class WebSocketClient {
     this.ws.onclose = (event) => {
       console.log("WebSocket closed:", event.code, event.reason);
       this.clearTimers();
-      
+
       if (event.code === 1000) {
         // Normal closure
         this.connectionStateSignal[1]("disconnected");
@@ -155,7 +165,7 @@ export class WebSocketClient {
     if (message.type === "response" && "req_id" in message) {
       const reqId = message.req_id;
       const callback = this.pendingRequests.get(reqId);
-      
+
       if (callback) {
         this.pendingRequests.delete(reqId);
         callback(message as WebSocketResponse);
@@ -169,7 +179,7 @@ export class WebSocketClient {
 
   private startHeartbeat(): void {
     this.clearHeartbeat();
-    
+
     this.heartbeatTimer = window.setInterval(() => {
       if (this.ws?.readyState === WebSocket.OPEN) {
         this.send({
@@ -197,10 +207,12 @@ export class WebSocketClient {
     }
 
     this.connectionStateSignal[1]("reconnecting");
-    
+
     const delay = this.baseReconnectDelay * Math.pow(2, this.reconnectAttempts);
-    console.log(`Scheduling reconnect in ${delay}ms (attempt ${this.reconnectAttempts + 1})`);
-    
+    console.log(
+      `Scheduling reconnect in ${delay}ms (attempt ${this.reconnectAttempts + 1})`,
+    );
+
     this.reconnectTimer = window.setTimeout(() => {
       this.reconnectAttempts++;
       this.connect();
@@ -209,7 +221,7 @@ export class WebSocketClient {
 
   private clearTimers(): void {
     this.clearHeartbeat();
-    
+
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
@@ -219,7 +231,7 @@ export class WebSocketClient {
   public destroy(): void {
     this.clearTimers();
     this.pendingRequests.clear();
-    
+
     if (this.ws) {
       this.ws.close();
       this.ws = null;

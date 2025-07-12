@@ -23,18 +23,20 @@ export function ChatLayout() {
           <Show when={getters.getCurrentChannelData()}>
             <div class="flex items-center space-x-2">
               <span class="text-gray-400">#</span>
-              <span class="font-medium">{getters.getCurrentChannelData()?.name}</span>
+              <span class="font-medium">
+                {getters.getCurrentChannelData()?.name}
+              </span>
               <Show when={getters.getCurrentChannelData()?.topic}>
                 <span class="text-gray-400">-</span>
-                <span class="text-sm text-gray-400">{getters.getCurrentChannelData()?.topic}</span>
+                <span class="text-sm text-gray-400">
+                  {getters.getCurrentChannelData()?.topic}
+                </span>
               </Show>
             </div>
           </Show>
         </div>
         <div class="flex items-center space-x-4">
-          <span class="text-sm text-gray-400">
-            {currentUser()?.nickname}
-          </span>
+          <span class="text-sm text-gray-400">{currentUser()?.nickname}</span>
           <button
             onClick={handleLogout}
             class="px-3 py-1 text-sm bg-gray-700 text-gray-300 rounded hover:bg-gray-600 transition-colors"
@@ -52,9 +54,9 @@ export function ChatLayout() {
         </div>
 
         {/* Center - Chat Area */}
-        <div class="flex-1 flex flex-col min-w-0">
-          <Show 
-            when={currentChannel()} 
+        <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
+          <Show
+            when={currentChannel()}
             fallback={
               <div class="flex-1 flex items-center justify-center bg-gray-900">
                 <div class="text-center">
@@ -62,14 +64,19 @@ export function ChatLayout() {
                     Welcome to ThrowBackChat
                   </h2>
                   <p class="text-gray-500">
-                    Select a channel from the sidebar or join a new one to start chatting
+                    Select a channel from the sidebar or join a new one to start
+                    chatting
                   </p>
                 </div>
               </div>
             }
           >
-            <ChatArea />
-            <MessageInput />
+            <div class="flex-1 overflow-hidden">
+              <ChatArea />
+            </div>
+            <div class="flex-shrink-0">
+              <MessageInput />
+            </div>
           </Show>
         </div>
 

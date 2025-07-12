@@ -1,5 +1,5 @@
 import { For, createSignal, Show } from "solid-js";
-import { currentChannel, getters, chatAPI } from "../store";
+import { currentChannel, getters, chatAPI, appState } from "../store";
 import { setCurrentChannel } from "../store";
 
 export function ChannelList() {
@@ -7,8 +7,24 @@ export function ChannelList() {
   const [joinChannelName, setJoinChannelName] = createSignal("");
   const [showJoinForm, setShowJoinForm] = createSignal(false);
 
-  const handleChannelSelect = (channelId: string) => {
+  const handleChannelSelect = async (channelId: string) => {
+    // Check if channel data exists before switching
+    const channelMessages = appState.messages[channelId] || [];
+    const channelUsers = appState.channelUsers[channelId] || [];
+
     setCurrentChannel(channelId);
+
+    // Load channel data if not already loaded
+    try {
+      if (channelMessages.length === 0 || channelUsers.length === 0) {
+        await Promise.all([
+          chatAPI.getHistory(channelId, undefined, 50).catch(console.error),
+          chatAPI.getChannelUsers(channelId).catch(console.error),
+        ]);
+      }
+    } catch (error) {
+      console.error("Failed to load channel data:", error);
+    }
   };
 
   const handleJoinChannel = async (e: Event) => {
@@ -111,7 +127,6 @@ export function ChannelList() {
               >
                 <div class="flex items-center justify-between">
                   <div class="flex items-center space-x-2 min-w-0">
-                    <span class="text-gray-400">#</span>
                     <span class="font-medium text-sm truncate">
                       {channel.name}
                     </span>
