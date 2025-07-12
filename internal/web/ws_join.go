@@ -116,6 +116,10 @@ func (h *WebSocketHandler) HandleJoin(sess *chat.Session, data []byte) error {
 					Nickname:  msg.Nickname,
 					SentAt:    msg.SentAt.Format(time.RFC3339),
 				}
+				// For topic_change events, include the topic from the message content
+				if msg.Event == "topic_change" && msg.Message != "" {
+					eventMsg.Topic = &msg.Message
+				}
 				sess.SendMessage(eventMsg)
 			} else {
 				// Send as regular message

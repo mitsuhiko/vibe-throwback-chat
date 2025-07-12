@@ -75,6 +75,10 @@ func (h *WebSocketHandler) HandleHistory(sess *chat.Session, data []byte) error 
 				Nickname:  msg.Nickname,
 				SentAt:    msg.SentAt.Format(time.RFC3339),
 			}
+			// For topic_change events, include the topic from the message content
+			if msg.Event == "topic_change" && msg.Message != "" {
+				eventMsg.Topic = &msg.Message
+			}
 			responseMessages = append(responseMessages, eventMsg)
 		} else {
 			// Send as regular message

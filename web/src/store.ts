@@ -269,7 +269,13 @@ function handleChatEvent(event: ChatEvent) {
 
     case "topic_change":
       if (channelId && event.topic !== undefined) {
-        setAppState("channels", channelId, "topic", event.topic);
+        // Ensure channel exists in store before setting topic
+        setAppState("channels", channelId, (channel) => ({
+          id: channelId.toString(),
+          name: channel?.name || `#${channelId}`,
+          topic: event.topic,
+          ...channel,
+        }));
       }
       break;
   }
