@@ -36,7 +36,7 @@ export interface LeaveRequest extends BaseRequest {
 
 export interface MessageRequest extends BaseRequest {
   cmd: "message";
-  channel_id: string;
+  channel_id: number;
   message: string;
   is_passive?: boolean;
 }

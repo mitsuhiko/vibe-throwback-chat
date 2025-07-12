@@ -321,7 +321,7 @@ export const chatAPI = {
   ): Promise<void> {
     const response = await wsClient.send({
       cmd: "message",
-      channel_id: channelId,
+      channel_id: parseInt(channelId, 10),
       message,
       is_passive: isPassive,
       req_id: "",
@@ -365,7 +365,7 @@ export const chatAPI = {
   async changeTopic(channelId: string, topic: string): Promise<void> {
     const response = await wsClient.send({
       cmd: "topic",
-      channel_id: channelId,
+      channel_id: parseInt(channelId, 10),
       topic,
       req_id: "",
     });
@@ -378,7 +378,7 @@ export const chatAPI = {
   async sendMeAction(channelId: string, message: string): Promise<void> {
     const response = await wsClient.send({
       cmd: "me",
-      channel_id: channelId,
+      channel_id: parseInt(channelId, 10),
       message,
       req_id: "",
     });
